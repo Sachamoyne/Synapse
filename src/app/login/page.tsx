@@ -25,29 +25,80 @@ export default function LoginPage() {
 
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+        
+        // Wait a bit to ensure cookies are set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify session was created
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Session could not be established");
+        }
+        
         router.push("/dashboard");
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
         });
 
         if (error) throw error;
 
-        // After signup, sign in automatically
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        // Check if email confirmation is required
+        if (signUpData.user && !signUpData.session) {
+          // Email confirmation is required
+          setError("Veuillez vérifier votre email pour confirmer votre compte avant de vous connecter.");
+          return;
+        }
+
+        // If session exists, user is automatically logged in (email confirmation disabled)
+        if (signUpData.session) {
+          // Wait a bit to ensure cookies are set
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Verify session was created
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            throw new Error("Session could not be established");
+          }
+          
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
+
+        // Fallback: try to sign in if no session was returned
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (signInError) throw signInError;
+        if (signInError) {
+          // If sign in fails, it might be because email confirmation is required
+          if (signInError.message.includes("email") || signInError.message.includes("confirm")) {
+            setError("Veuillez vérifier votre email pour confirmer votre compte avant de vous connecter.");
+          } else {
+            throw signInError;
+          }
+          return;
+        }
+        
+        // Wait a bit to ensure cookies are set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify session was created
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Session could not be established");
+        }
+        
         router.push("/dashboard");
         router.refresh();
       }
