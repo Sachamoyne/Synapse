@@ -560,14 +560,20 @@ export default function DeckDetailPage() {
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Front
                                 </p>
-                                <p className="mt-1">{card.front}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.front }}
+                                />
                               </div>
                               <Separator />
                               <div>
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Back
                                 </p>
-                                <p className="mt-1">{card.back}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.back }}
+                                />
                               </div>
                             </CardContent>
                           </Card>
@@ -631,14 +637,20 @@ export default function DeckDetailPage() {
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Front
                                 </p>
-                                <p className="mt-1">{card.front}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.front }}
+                                />
                               </div>
                               <Separator />
                               <div>
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Back
                                 </p>
-                                <p className="mt-1">{card.back}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.back }}
+                                />
                               </div>
                             </CardContent>
                           </Card>
@@ -702,14 +714,20 @@ export default function DeckDetailPage() {
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Front
                                 </p>
-                                <p className="mt-1">{card.front}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.front }}
+                                />
                               </div>
                               <Separator />
                               <div>
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Back
                                 </p>
-                                <p className="mt-1">{card.back}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.back }}
+                                />
                               </div>
                             </CardContent>
                           </Card>
@@ -773,14 +791,20 @@ export default function DeckDetailPage() {
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Front
                                 </p>
-                                <p className="mt-1">{card.front}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.front }}
+                                />
                               </div>
                               <Separator />
                               <div>
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Back
                                 </p>
-                                <p className="mt-1">{card.back}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.back }}
+                                />
                               </div>
                             </CardContent>
                           </Card>
@@ -844,14 +868,20 @@ export default function DeckDetailPage() {
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Front
                                 </p>
-                                <p className="mt-1">{card.front}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.front }}
+                                />
                               </div>
                               <Separator />
                               <div>
                                 <p className="text-sm font-medium text-muted-foreground">
                                   Back
                                 </p>
-                                <p className="mt-1">{card.back}</p>
+                                <div
+                                  className="mt-1"
+                                  dangerouslySetInnerHTML={{ __html: card.back }}
+                                />
                               </div>
                             </CardContent>
                           </Card>

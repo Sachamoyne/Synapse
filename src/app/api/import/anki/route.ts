@@ -89,6 +89,46 @@ function getCardState(type: number): "new" | "learning" | "review" {
   return "review";
 }
 
+// Helper: Decode HTML entities from Anki content
+// Anki stores content with HTML entities (&nbsp;, &lt;, &gt;, etc.)
+// We need to decode them to display correctly in Synapse
+function decodeHtmlEntities(text: string): string {
+  if (!text) return text;
+
+  // Common HTML entities used in Anki
+  const entities: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&cent;': '¢',
+    '&pound;': '£',
+    '&yen;': '¥',
+    '&euro;': '€',
+    '&copy;': '©',
+    '&reg;': '®',
+  };
+
+  // Replace all known entities
+  let decoded = text;
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.split(entity).join(char);
+  }
+
+  // Decode numeric entities (&#123; or &#xAB;)
+  decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
+    return String.fromCharCode(parseInt(dec, 10));
+  });
+  decoded = decoded.replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => {
+    return String.fromCharCode(parseInt(hex, 16));
+  });
+
+  return decoded;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -267,11 +307,21 @@ export async function POST(request: NextRequest) {
       }
 
       // Create decks with hierarchy
+      // IMPORTANT: Skip Anki's default deck (ID: 1, name: "Default" or "Par défaut")
+      // This deck is auto-created by Anki and is usually empty
       for (const [deckId, deckData] of Object.entries(decksJson)) {
+        const ankiDeckId = Number(deckId);
         const deckName = (deckData as any).name as string;
+
+        // Skip the default deck (ID: 1)
+        if (ankiDeckId === 1) {
+          console.log(`[ANKI IMPORT] Skipping Anki default deck ${deckId} ("${deckName}")`);
+          continue;
+        }
+
         const deckPath = parseDeckName(deckName);
         const synapseDeckId = await getOrCreateDeck(supabase, userId, deckPath, deckCache);
-        ankiDeckIdToSynapseDeckId.set(Number(deckId), synapseDeckId);
+        ankiDeckIdToSynapseDeckId.set(ankiDeckId, synapseDeckId);
 
         // Debug: Show mapping
         console.log(`[ANKI IMPORT] Mapped Anki deck ${deckId} ("${deckName}") → Synapse deck ${synapseDeckId} (leaf: "${deckPath[deckPath.length - 1]}")`);
@@ -291,6 +341,7 @@ export async function POST(request: NextRequest) {
       let skippedNoNote = 0;
       let skippedNoDeck = 0;
       let skippedEmptyFields = 0;
+      let skippedDefaultDeck = 0; // Track cards skipped from Anki's default deck
       let failedInserts = 0;
       const now = new Date();
       const cardsPerDeck = new Map<string, number>(); // Track cards per Synapse deck
@@ -303,6 +354,12 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Skip cards from the default deck (ID: 1)
+        if (card.did === 1) {
+          skippedDefaultDeck++;
+          continue;
+        }
+
         const synapseDeckId = ankiDeckIdToSynapseDeckId.get(card.did);
         if (!synapseDeckId) {
           skippedNoDeck++;
@@ -312,8 +369,11 @@ export async function POST(request: NextRequest) {
 
         // Parse note fields (separated by \x1f)
         const fields = note.flds.split("\x1f");
-        const front = fields[0] || "";
-        const back = fields[1] || "";
+
+        // Decode HTML entities from Anki (e.g., &nbsp; → space, &lt; → <)
+        // This ensures content displays exactly as in Anki
+        const front = decodeHtmlEntities(fields[0] || "");
+        const back = decodeHtmlEntities(fields[1] || "");
 
         // Debug first card to see raw data
         if (skippedEmptyFields === 0 && importedCount === 0) {
@@ -321,10 +381,10 @@ export async function POST(request: NextRequest) {
             rawFlds: note.flds,
             fldsLength: note.flds.length,
             splitResult: fields,
-            front: front,
-            back: back,
-            frontTrimmed: front.trim(),
-            backTrimmed: back.trim()
+            frontRaw: fields[0],
+            frontDecoded: front,
+            backRaw: fields[1],
+            backDecoded: back,
           });
         }
 
@@ -425,6 +485,7 @@ export async function POST(request: NextRequest) {
         imported: importedCount,
         skippedNoNote,
         skippedNoDeck,
+        skippedDefaultDeck,
         skippedEmptyFields,
         failedInserts
       });

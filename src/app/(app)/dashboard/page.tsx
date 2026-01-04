@@ -30,6 +30,14 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import {
+  Brain,
+  Flame,
+  Target,
+  BarChart3,
+  BookOpen,
+  TrendingUp,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const [deckCount, setDeckCount] = useState(0);
@@ -119,111 +127,173 @@ export default function DashboardPage() {
   return (
     <>
       <Topbar title="Dashboard" />
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-background to-muted/20">
+        <div className="mx-auto max-w-7xl space-y-8">
+          {/* Welcome header */}
+          <div className="animate-fade-in-up">
+            <h1 className="mb-2 text-3xl font-extrabold tracking-tight">
+              Bienvenue sur votre tableau de bord
+            </h1>
+            <p className="text-muted-foreground">
+              Suivez vos progrès et continuez votre parcours d'apprentissage
+            </p>
+          </div>
+
           {/* Top KPI row */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  À réviser aujourd&apos;hui
-                </CardTitle>
+          <div className="grid gap-6 md:grid-cols-3 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+            {/* Due Cards */}
+            <Card className="group relative overflow-hidden border-2 hover:border-primary/50 transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    À réviser aujourd&apos;hui
+                  </CardTitle>
+                  <div className="rounded-lg bg-gradient-to-br from-primary to-primary/80 p-2.5 shadow-lg shadow-primary/25">
+                    <Target className="h-5 w-5 text-white" />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <p className="text-2xl font-bold">...</p>
+                  <p className="text-4xl font-extrabold text-muted-foreground/50">...</p>
                 ) : (
-                  <p className="text-2xl font-bold">{dueCount}</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Étudiées aujourd&apos;hui
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-2xl font-bold">...</p>
-                ) : (
-                  <p className="text-2xl font-bold">{studiedToday}</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Série actuelle
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-2xl font-bold">...</p>
-                ) : (
-                  <p className="text-2xl font-bold">
-                    {streak} jour{streak !== 1 ? "s" : ""}
+                  <p className="text-4xl font-extrabold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                    {dueCount}
                   </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Studied Today */}
+            <Card className="group relative overflow-hidden border-2 hover:border-accent/50 transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Étudiées aujourd&apos;hui
+                  </CardTitle>
+                  <div className="rounded-lg bg-gradient-to-br from-accent to-accent/80 p-2.5 shadow-lg shadow-accent/25">
+                    <Brain className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-4xl font-extrabold text-muted-foreground/50">...</p>
+                ) : (
+                  <p className="text-4xl font-extrabold bg-gradient-to-r from-accent to-accent/80 bg-clip-text text-transparent">
+                    {studiedToday}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Streak */}
+            <Card className="group relative overflow-hidden border-2 hover:border-orange-500/50 transition-all">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Série actuelle
+                  </CardTitle>
+                  <div className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 p-2.5 shadow-lg shadow-orange-500/25">
+                    <Flame className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-4xl font-extrabold text-muted-foreground/50">...</p>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-4xl font-extrabold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                      {streak}
+                    </p>
+                    <p className="text-lg font-semibold text-muted-foreground">
+                      jour{streak !== 1 ? "s" : ""}
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
           {/* Main charts: two columns */}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
             {/* Heatmap */}
-            <Card>
+            <Card className="border-2 hover:border-primary/30 transition-all">
               <CardHeader>
-                <CardTitle className="text-base">Activité (90 derniers jours)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg font-bold">Activité (90 derniers jours)</CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="flex items-center justify-center py-4">
                 {heatmapData !== undefined ? (
                   <ActivityHeatmap data={heatmapData} days={90} />
                 ) : (
                   <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                    Chargement...
+                    <div className="animate-pulse">Chargement...</div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Line chart */}
-            <Card>
+            <Card className="border-2 hover:border-accent/30 transition-all">
               <CardHeader>
-                <CardTitle className="text-base">Révisions par jour (30 derniers jours)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 p-2">
+                    <TrendingUp className="h-4 w-4 text-accent" />
+                  </div>
+                  <CardTitle className="text-lg font-bold">Révisions par jour (30 derniers jours)</CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
                 {reviewsByDay !== undefined ? (
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <LineChart data={reviewsByDay}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <defs>
+                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
                       <XAxis
                         dataKey="date"
                         tickFormatter={formatChartDate}
                         className="text-xs"
                         stroke="currentColor"
+                        opacity={0.6}
                       />
-                      <YAxis className="text-xs" stroke="currentColor" />
+                      <YAxis className="text-xs" stroke="currentColor" opacity={0.6} />
                       <RechartsTooltip
                         labelFormatter={(label) => formatChartDate(label)}
                         contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "0.5rem",
+                          backgroundColor: "hsl(var(--card))",
+                          border: "2px solid hsl(var(--border))",
+                          borderRadius: "1rem",
+                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                         }}
                       />
                       <Line
                         type="monotone"
                         dataKey="count"
                         stroke="hsl(var(--primary))"
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                        activeDot={{ r: 6 }}
+                        fill="url(#colorCount)"
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                    Chargement...
+                    <div className="animate-pulse">Chargement...</div>
                   </div>
                 )}
               </CardContent>
@@ -231,11 +301,16 @@ export default function DashboardPage() {
           </div>
 
           {/* Bottom: Breakdown + Total reviews */}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
             {/* Card breakdown */}
-            <Card>
+            <Card className="border-2 hover:border-primary/30 transition-all">
               <CardHeader>
-                <CardTitle className="text-base">Répartition des cartes</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg font-bold">Répartition des cartes</CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="px-2 py-4">
                 {cardDistribution !== undefined ? (
@@ -260,13 +335,13 @@ export default function DashboardPage() {
                                   fill="white"
                                   textAnchor="middle"
                                   dominantBaseline="central"
-                                  className="text-xs font-semibold"
+                                  className="text-sm font-bold drop-shadow"
                                 >
                                   {`${(percent * 100).toFixed(0)}%`}
                                 </text>
                               );
                             }}
-                            outerRadius={70}
+                            outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
                           >
@@ -278,7 +353,9 @@ export default function DashboardPage() {
                             verticalAlign="bottom"
                             height={36}
                             wrapperStyle={{
-                              paddingTop: "10px"
+                              paddingTop: "10px",
+                              fontSize: "14px",
+                              fontWeight: "600"
                             }}
                           />
                         </PieChart>
@@ -286,34 +363,39 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                      Aucune carte
+                      <div className="animate-pulse">Aucune carte</div>
                     </div>
                   )
                 ) : (
                   <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                    Chargement...
+                    <div className="animate-pulse">Chargement...</div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Secondary KPIs */}
-            <Card>
+            <Card className="border-2 hover:border-accent/30 transition-all">
               <CardHeader>
-                <CardTitle className="text-base">Statistiques</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 p-2">
+                    <BarChart3 className="h-4 w-4 text-accent" />
+                  </div>
+                  <CardTitle className="text-lg font-bold">Statistiques globales</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Decks</p>
-                  <p className="text-xl font-semibold">{deckCount}</p>
+              <CardContent className="space-y-6">
+                <div className="group cursor-default rounded-xl border-2 border-transparent p-4 transition-all hover:border-primary/20 hover:bg-primary/5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Decks</p>
+                  <p className="text-3xl font-extrabold text-primary">{deckCount}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Cartes totales</p>
-                  <p className="text-xl font-semibold">{cardCount}</p>
+                <div className="group cursor-default rounded-xl border-2 border-transparent p-4 transition-all hover:border-accent/20 hover:bg-accent/5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cartes totales</p>
+                  <p className="text-3xl font-extrabold text-accent">{cardCount}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Révisions totales</p>
-                  <p className="text-xl font-semibold">{totalReviews}</p>
+                <div className="group cursor-default rounded-xl border-2 border-transparent p-4 transition-all hover:border-green-500/20 hover:bg-green-500/5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Révisions totales</p>
+                  <p className="text-3xl font-extrabold text-green-600">{totalReviews}</p>
                 </div>
               </CardContent>
             </Card>

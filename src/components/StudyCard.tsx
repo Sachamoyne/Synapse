@@ -272,11 +272,12 @@ export function StudyCard({
         return;
       }
 
-      // Enter: Good rating if back visible, otherwise same as Space
+      // Enter: Easy rating if back visible, otherwise same as Space
+      // This mimics Anki behavior where Enter = Easy (not Good)
       if (e.key === "Enter") {
         e.preventDefault();
         if (showBack) {
-          handleRate("good");
+          handleRate("easy");
         } else {
           setShowBack(true);
         }
@@ -439,7 +440,10 @@ export function StudyCard({
                   <p className="mb-4 text-sm font-medium text-muted-foreground">
                     Front
                   </p>
-                  <p className="text-2xl">{currentCard.front}</p>
+                  <div
+                    className="text-2xl"
+                    dangerouslySetInnerHTML={{ __html: currentCard.front }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -458,7 +462,10 @@ export function StudyCard({
                   <p className="mb-4 text-sm font-medium text-muted-foreground">
                     Back
                   </p>
-                  <p className="text-2xl">{currentCard.back}</p>
+                  <div
+                    className="text-2xl"
+                    dangerouslySetInnerHTML={{ __html: currentCard.back }}
+                  />
                 </div>
               </CardContent>
             </Card>
