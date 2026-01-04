@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/shell/AppSidebar";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 
 export default function AppLayout({
   children,
@@ -6,12 +7,14 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen">
-      <AppSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {children}
+    <SidebarProvider>
+      <div className="flex h-screen overflow-hidden">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+          {children}
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 

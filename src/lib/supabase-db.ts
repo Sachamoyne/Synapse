@@ -467,6 +467,24 @@ export async function getDueCount(deckId: string): Promise<number> {
   return count || 0;
 }
 
+export async function getTotalCardCount(deckId: string): Promise<number> {
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
+
+  // Get all descendant deck IDs
+  const deckIds = await getDeckAndAllChildren(deckId);
+
+  const { count, error } = await supabase
+    .from("cards")
+    .select("*", { count: "exact", head: true })
+    .in("deck_id", deckIds)
+    .eq("user_id", userId)
+    .eq("suspended", false);
+
+  if (error) throw error;
+  return count || 0;
+}
+
 export async function getDeckCardCounts(deckId: string): Promise<{
   new: number;
   learning: number;

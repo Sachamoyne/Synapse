@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listDecks, createDeck, getDueCount, getDeckCardCounts, listCards } from "@/store/decks";
+import { listDecks, createDeck, getDueCount, getDeckCardCounts, getTotalCardCount } from "@/store/decks";
 import { ImportDialog } from "@/components/ImportDialog";
 import type { Deck } from "@/lib/db";
 import { BookOpen } from "lucide-react";
@@ -43,13 +43,14 @@ export default function DecksPage() {
 
       // Load all counts in parallel to avoid N+1
       // Load counts for all decks (including sub-decks)
+      // Note: All count functions (getTotalCardCount, getDueCount, getDeckCardCounts)
+      // automatically aggregate counts from all descendant decks
       const countPromises = loadedDecks.map(async (deck) => {
-        const [cards, dueCount, learningCount] = await Promise.all([
-          listCards(deck.id),
+        const [cardCount, dueCount, learningCount] = await Promise.all([
+          getTotalCardCount(deck.id),
           getDueCount(deck.id),
           getDeckCardCounts(deck.id),
         ]);
-        const cardCount = cards.length;
         return {
           deckId: deck.id,
           cardCount,

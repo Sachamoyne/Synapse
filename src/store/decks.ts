@@ -16,6 +16,7 @@ export {
   moveCardsToDeck,
   getDueCards,
   getDueCount,
+  getTotalCardCount,
   getDeckCardCounts,
   reviewCard,
   getCardsStudiedToday,

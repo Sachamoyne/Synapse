@@ -31,7 +31,7 @@ export default function LoginPage() {
         });
 
         if (error) throw error;
-        router.push("/dashboard");
+        router.push("/decks");
         router.refresh();
       } else {
         const { error } = await supabase.auth.signUp({
@@ -48,7 +48,7 @@ export default function LoginPage() {
         });
 
         if (signInError) throw signInError;
-        router.push("/dashboard");
+        router.push("/decks");
         router.refresh();
       }
     } catch (err: any) {

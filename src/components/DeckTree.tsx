@@ -203,9 +203,10 @@ export function DeckTree({
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {(() => {
-                // Use recursive counts to include sub-decks
-                const counts = getRecursiveLearningCounts(deck.id, allDecks, learningCounts);
-                const totalCards = getRecursiveCardCount(deck.id, allDecks, cardCounts);
+                // Backend already provides aggregated counts (including all descendant decks)
+                // so we can use them directly without client-side recursion
+                const counts = learningCounts[deck.id] || { new: 0, learning: 0, review: 0 };
+                const totalCards = cardCounts[deck.id] || 0;
 
                 if (learningCounts[deck.id] !== undefined) {
                   return (

@@ -49,9 +49,9 @@ export default async function LandingPage() {
 
               <div className="mb-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start animate-fade-in-up">
                 {user ? (
-                  <Link href="/dashboard">
+                  <Link href="/decks">
                     <Button size="lg" className="group w-full gap-2 shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/40 sm:w-auto">
-                      Go to Dashboard
+                      Go to My Decks
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </Button>
                   </Link>

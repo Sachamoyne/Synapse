@@ -81,7 +81,26 @@ function getIntervalDays(ivl: number, type: number): number {
   return ivl; // Review cards
 }
 
-// Helper: Map Anki card state to Synapse state
+// Helper: Map Anki card queue to Synapse state
+// CRITICAL: Use queue (current state), NOT type (historical state)
+// Anki queue values:
+// - 0 = new
+// - 1 = learning
+// - 2 = review (due)
+// - 3 = day learning (relearning)
+// - -1 = suspended
+// - -2 = user buried
+// - -3 = scheduler buried
+function getCardStateFromQueue(queue: number): "new" | "learning" | "review" {
+  if (queue === 0) return "new";
+  if (queue === 1 || queue === 3) return "learning"; // 1=learning, 3=day learning
+  if (queue === 2) return "review";
+  // Suspended/buried cards: treat as review (they were reviewed before)
+  // We could also add a "suspended" state in Synapse, but for now map to review
+  return "review";
+}
+
+// DEPRECATED: Do not use - type is historical, not current state
 function getCardState(type: number): "new" | "learning" | "review" {
   // type: 0=new, 1=learning, 2=review, 3=relearning
   if (type === 0) return "new";
@@ -280,13 +299,14 @@ export async function POST(request: NextRequest) {
       }>;
 
       const cards = db.prepare(`
-        SELECT id, nid, did, type, ivl, factor, reps, lapses, due
+        SELECT id, nid, did, type, queue, ivl, factor, reps, lapses, due
         FROM cards
       `).all() as Array<{
         id: number;
         nid: number;
         did: number;
         type: number;
+        queue: number;
         ivl: number;
         factor: number;
         reps: number;
@@ -295,6 +315,17 @@ export async function POST(request: NextRequest) {
       }>;
 
       console.log("[ANKI IMPORT] Read from Anki DB:", { notes: notes.length, cards: cards.length });
+
+      // Debug: Show distribution of queue values (actual card states in Anki)
+      const queueDistribution = new Map<number, number>();
+      for (const card of cards) {
+        queueDistribution.set(card.queue, (queueDistribution.get(card.queue) || 0) + 1);
+      }
+      console.log("[ANKI IMPORT] Anki queue distribution (0=new, 1=learning, 2=review, 3=day learning, -1=suspended):");
+      for (const [queue, count] of Array.from(queueDistribution.entries()).sort((a, b) => a[0] - b[0])) {
+        const queueName = queue === 0 ? "new" : queue === 1 ? "learning" : queue === 2 ? "review" : queue === 3 ? "day learning" : queue === -1 ? "suspended" : `unknown(${queue})`;
+        console.log(`  queue ${queue} (${queueName}): ${count} cards`);
+      }
 
       // Build deck cache
       const deckCache = new Map<string, string>();
@@ -327,10 +358,17 @@ export async function POST(request: NextRequest) {
         console.log(`[ANKI IMPORT] Mapped Anki deck ${deckId} ("${deckName}") → Synapse deck ${synapseDeckId} (leaf: "${deckPath[deckPath.length - 1]}")`);
       }
 
-      // Debug: Show all created decks
-      console.log("[ANKI IMPORT] All Synapse decks created:");
-      for (const [fullPath, deckId] of deckCache.entries()) {
-        console.log(`  - "${fullPath}" → ${deckId}`);
+      // Debug: Show all created decks with Anki deck ID mapping
+      console.log("[ANKI IMPORT] All Synapse decks created (with Anki ID mapping):");
+      for (const [fullPath, synapseDeckId] of deckCache.entries()) {
+        // Find corresponding Anki deck ID(s) for this Synapse deck
+        const ankiDeckIds: number[] = [];
+        for (const [ankiId, synapseId] of ankiDeckIdToSynapseDeckId.entries()) {
+          if (synapseId === synapseDeckId) {
+            ankiDeckIds.push(ankiId);
+          }
+        }
+        console.log(`  - "${fullPath}" (Synapse: ${synapseDeckId}, Anki: ${ankiDeckIds.join(', ') || 'none'})`);
       }
 
       // Build note lookup
@@ -346,6 +384,7 @@ export async function POST(request: NextRequest) {
       const now = new Date();
       const cardsPerDeck = new Map<string, number>(); // Track cards per Synapse deck
       const cardsByState = { new: 0, learning: 0, review: 0 }; // Track cards by state
+      let suspendedCount = 0; // Track suspended cards
 
       for (const card of cards) {
         const note = noteMap.get(card.nid);
@@ -393,8 +432,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Calculate due date based on Anki card type
-        const state = getCardState(card.type);
+        // Calculate due date and state based on Anki card queue (current state)
+        // CRITICAL: Use queue, not type, to get the actual current state
+        const state = getCardStateFromQueue(card.queue);
         const intervalDays = getIntervalDays(card.ivl, card.type);
         let dueAt = now;
 
@@ -422,14 +462,20 @@ export async function POST(request: NextRequest) {
           console.log(`[ANKI IMPORT] Card ${importedCount + 1}:`, {
             ankiDeckId: card.did,
             synapseDeckId,
+            ankiQueue: card.queue,
             ankiType: card.type,
-            state,
+            mappedState: state,
             ankiDue: card.due,
             dueAt: dueAt.toISOString(),
             isDueNow: dueAt <= now,
             intervalDays,
+            ankiReps: card.reps,
           });
         }
+
+        // Determine if card is suspended/buried based on queue
+        // queue = -1 (suspended), -2 (user buried), -3 (scheduler buried)
+        const isSuspended = card.queue < 0;
 
         // Insert card
         const { error: cardError } = await supabase.from("cards").insert({
@@ -444,14 +490,19 @@ export async function POST(request: NextRequest) {
           reps: card.reps,
           lapses: card.lapses,
           learning_step_index: 0, // Default to 0 (NOT NULL constraint)
+          suspended: isSuspended, // Import suspended state from Anki
         });
 
         if (!cardError) {
           importedCount++;
           // Track cards per deck
           cardsPerDeck.set(synapseDeckId, (cardsPerDeck.get(synapseDeckId) || 0) + 1);
-          // Track cards by state
-          cardsByState[state]++;
+          // Track cards by state (only non-suspended for stats comparison)
+          if (!isSuspended) {
+            cardsByState[state]++;
+          } else {
+            suspendedCount++;
+          }
         } else {
           failedInserts++;
           console.error("[ANKI IMPORT] Card insert failed:", {
@@ -463,8 +514,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Debug: Show state distribution
-      console.log("[ANKI IMPORT] Cards by state:", cardsByState);
+      // Debug: Show state distribution (after queue→state mapping)
+      console.log("[ANKI IMPORT] Synapse cards by state (non-suspended only):", cardsByState);
+      console.log("[ANKI IMPORT] Suspended/buried cards:", suspendedCount);
+      console.log("[ANKI IMPORT] NOTE: States mapped from Anki queue field, NOT type field");
 
       // Debug: Show card distribution per Synapse deck
       console.log("[ANKI IMPORT] Cards per Synapse deck:");
@@ -478,6 +531,21 @@ export async function POST(request: NextRequest) {
           }
         }
         console.log(`  - Deck "${deckName}" (${synapseDeckId}): ${count} cards`);
+      }
+
+      // Debug: Show card distribution by Anki deck (for comparison with Anki UI)
+      console.log("[ANKI IMPORT] Cards per Anki deck (original distribution):");
+      const cardsByAnkiDeck = new Map<number, number>();
+      for (const card of cards) {
+        if (card.did !== 1) { // Skip default deck
+          cardsByAnkiDeck.set(card.did, (cardsByAnkiDeck.get(card.did) || 0) + 1);
+        }
+      }
+      for (const [ankiDeckId, count] of cardsByAnkiDeck.entries()) {
+        const deckData = decksJson[ankiDeckId];
+        const deckName = deckData ? (deckData as any).name : 'unknown';
+        const synapseDeckId = ankiDeckIdToSynapseDeckId.get(ankiDeckId);
+        console.log(`  - Anki deck #${ankiDeckId} "${deckName}": ${count} cards → Synapse deck ${synapseDeckId || 'UNMAPPED'}`);
       }
 
       console.log("[ANKI IMPORT] Import summary:", {
