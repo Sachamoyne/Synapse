@@ -17,14 +17,58 @@ export function RichCardInput({
   placeholder = "Enter text or drag an image...",
   label,
 }: RichCardInputProps) {
+  const IMAGE_BUCKET = "card-media";
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const bucketEnsuredRef = useRef(false);
+  const initLoggedRef = useRef(false);
   const supabase = createClient();
 
+  if (!initLoggedRef.current) {
+    console.log("[RICH CARD INPUT] Storage init", {
+      supabaseReady: !!supabase,
+      bucket: IMAGE_BUCKET,
+    });
+    initLoggedRef.current = true;
+  }
+
+  const ensureCardMediaBucket = useCallback(async () => {
+    if (bucketEnsuredRef.current) return true;
+
+    try {
+      const response = await fetch("/api/storage/ensure-card-media", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        console.error("[RICH CARD INPUT] ❌ Failed to ensure storage bucket", {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        // Do not block upload flow; Supabase will return the real error if bucket is missing.
+        return true;
+      }
+
+      bucketEnsuredRef.current = true;
+      return true;
+    } catch (error) {
+      console.error("[RICH CARD INPUT] ❌ Bucket ensure request failed:", error);
+      // Allow upload to proceed; this guard is best-effort only.
+      return true;
+    }
+  }, []);
+
   const uploadImage = async (file: File): Promise<string | null> => {
+    let handledError = false;
+
     try {
       setIsUploading(true);
+
+      const bucketReady = await ensureCardMediaBucket();
+      if (!bucketReady) {
+        return null;
+      }
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -40,22 +84,23 @@ export function RichCardInput({
       const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${extension}`;
       const storagePath = `${user.id}/card-images/${fileName}`;
 
-      console.log("[RICH CARD INPUT] Uploading image:", { fileName, size: file.size, bucket: 'card-media' });
+      console.log("[RICH CARD INPUT] Uploading image:", { fileName, size: file.size, bucket: IMAGE_BUCKET });
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from('card-media')
+        .from(IMAGE_BUCKET)
         .upload(storagePath, file, {
           contentType: file.type,
           upsert: false,
         });
 
       if (error) {
+        handledError = true;
         console.error("[RICH CARD INPUT] ❌ Upload failed:", {
           error,
           message: error.message,
           statusCode: error.statusCode,
-          bucket: 'card-media',
+          bucket: IMAGE_BUCKET,
           path: storagePath
         });
 
@@ -76,12 +121,12 @@ export function RichCardInput({
           alert(`Upload failed: ${error.message}`);
         }
 
-        return null;
+        throw error;
       }
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('card-media')
+        .from(IMAGE_BUCKET)
         .getPublicUrl(storagePath);
 
       if (!urlData?.publicUrl) {
@@ -94,7 +139,9 @@ export function RichCardInput({
       return urlData.publicUrl;
     } catch (error) {
       console.error("[RICH CARD INPUT] ❌ Upload error:", error);
-      alert(`Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (!handledError) {
+        alert(`Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       return null;
     } finally {
       setIsUploading(false);
