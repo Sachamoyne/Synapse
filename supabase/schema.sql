@@ -18,6 +18,8 @@ CREATE TABLE cards (
   deck_id UUID NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'basic' CHECK (type IN ('basic', 'reversible', 'typed')),
+  extra JSONB,
   state TEXT NOT NULL DEFAULT 'new' CHECK (state IN ('new', 'learning', 'review')),
   due_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   interval_days INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +85,7 @@ CREATE INDEX idx_cards_user_id ON cards(user_id);
 CREATE INDEX idx_cards_deck_id ON cards(deck_id);
 CREATE INDEX idx_cards_due_at ON cards(due_at);
 CREATE INDEX idx_cards_state ON cards(state);
+CREATE INDEX idx_cards_type ON cards(type);
 CREATE INDEX idx_reviews_user_id ON reviews(user_id);
 CREATE INDEX idx_reviews_card_id ON reviews(card_id);
 CREATE INDEX idx_reviews_reviewed_at ON reviews(reviewed_at);

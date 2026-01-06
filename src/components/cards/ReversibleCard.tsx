@@ -1,0 +1,234 @@
+/**
+ * ReversibleCard Component
+ *
+ * Bidirectional flashcard: randomly shows front→back OR back→front
+ * Orientation is decided once per card review (not persisted).
+ */
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import { getReversibleOrientation } from "@/lib/card-types";
+import type { Card as CardType, IntervalPreview } from "@/lib/db";
+import { ArrowRightLeft } from "lucide-react";
+
+interface ReversibleCardProps {
+  card: CardType;
+  onRate: (rating: "again" | "hard" | "good" | "easy") => void;
+  intervalPreviews: IntervalPreview | null;
+  ratingFlash: string | null;
+}
+
+export function ReversibleCard({
+  card,
+  onRate,
+  intervalPreviews,
+  ratingFlash,
+}: ReversibleCardProps) {
+  const [showBack, setShowBack] = useState(false);
+  // true = normal (front→back), false = reversed (back→front)
+  const [isNormalOrientation, setIsNormalOrientation] = useState(true);
+
+  // Decide orientation once when card is shown
+  useEffect(() => {
+    setIsNormalOrientation(getReversibleOrientation());
+    setShowBack(false);
+  }, [card.id]);
+
+  // Keyboard shortcuts for reversible card
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      // Space: show answer if front visible
+      if (e.key === " " && !showBack) {
+        e.preventDefault();
+        setShowBack(true);
+        return;
+      }
+
+      // Enter: Easy rating if back visible, otherwise show back
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (showBack) {
+          onRate("easy");
+        } else {
+          setShowBack(true);
+        }
+        return;
+      }
+
+      // Rating keys (only work when back is visible)
+      if (showBack) {
+        if (e.key === "1") {
+          e.preventDefault();
+          onRate("again");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          onRate("hard");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          onRate("good");
+        } else if (e.key === "4") {
+          e.preventDefault();
+          onRate("easy");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showBack, onRate]);
+
+  // Determine which content to show based on orientation
+  const questionContent = isNormalOrientation ? card.front : card.back;
+  const answerContent = isNormalOrientation ? card.back : card.front;
+
+  return (
+    <>
+      {/* Card container with flip animation */}
+      <div className="relative w-full">
+        {/* Orientation indicator */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs text-muted-foreground">
+          <ArrowRightLeft className="h-3 w-3" />
+          <span>{isNormalOrientation ? "Front → Back" : "Back → Front"}</span>
+        </div>
+
+        <div
+          className="relative w-full min-h-[400px]"
+          style={{
+            transformStyle: "preserve-3d",
+            transform: showBack ? "rotateY(180deg)" : "rotateY(0deg)",
+            transition: "transform 0.3s ease-in-out",
+          }}
+        >
+          {/* Question face */}
+          <Card
+            className="absolute inset-0 w-full min-h-[400px] shadow-lg border-border/50"
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              transform: "rotateY(0deg)",
+            }}
+          >
+            <CardContent className="flex min-h-[400px] flex-col items-center justify-center p-12">
+              <div className="text-center max-w-2xl">
+                <div
+                  className="text-3xl leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:mx-auto [&_img]:rounded-md [&_img]:shadow-sm"
+                  dangerouslySetInnerHTML={{ __html: questionContent }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Answer face */}
+          <Card
+            className="absolute inset-0 w-full min-h-[400px] shadow-lg border-border/50"
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <CardContent className="flex min-h-[400px] flex-col items-center justify-center p-12">
+              <div className="text-center max-w-2xl">
+                <div
+                  className="text-3xl leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:mx-auto [&_img]:rounded-md [&_img]:shadow-sm"
+                  dangerouslySetInnerHTML={{ __html: answerContent }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex flex-col gap-4 w-full max-w-xl">
+        {!showBack ? (
+          <Button
+            onClick={() => setShowBack(true)}
+            size="lg"
+            className="h-14 text-base"
+          >
+            Show answer
+          </Button>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <Button
+              variant="destructive"
+              onClick={() => onRate("again")}
+              size="lg"
+              className={cn(
+                "transition-all flex flex-col h-auto py-4",
+                ratingFlash === "again" && "scale-105 ring-2 ring-destructive"
+              )}
+            >
+              <span className="font-medium">Again</span>
+              {intervalPreviews && (
+                <span className="text-xs opacity-70 mt-1">
+                  {intervalPreviews.again}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onRate("hard")}
+              size="lg"
+              className={cn(
+                "transition-all flex flex-col h-auto py-4",
+                ratingFlash === "hard" && "scale-105 ring-2 ring-ring"
+              )}
+            >
+              <span className="font-medium">Hard</span>
+              {intervalPreviews?.hard && (
+                <span className="text-xs opacity-70 mt-1">
+                  {intervalPreviews.hard}
+                </span>
+              )}
+            </Button>
+            <Button
+              onClick={() => onRate("good")}
+              size="lg"
+              className={cn(
+                "transition-all flex flex-col h-auto py-4",
+                ratingFlash === "good" && "scale-105 ring-2 ring-primary"
+              )}
+            >
+              <span className="font-medium">Good</span>
+              {intervalPreviews && (
+                <span className="text-xs opacity-70 mt-1">
+                  {intervalPreviews.good}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => onRate("easy")}
+              size="lg"
+              className={cn(
+                "transition-all flex flex-col h-auto py-4",
+                ratingFlash === "easy" && "scale-105 ring-2 ring-secondary"
+              )}
+            >
+              <span className="font-medium">Easy</span>
+              {intervalPreviews && (
+                <span className="text-xs opacity-70 mt-1">
+                  {intervalPreviews.easy}
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

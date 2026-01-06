@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 
 export type Deck = Database["public"]["Tables"]["decks"]["Row"];
@@ -185,30 +186,64 @@ export async function listCards(deckId: string): Promise<Card[]> {
 export async function createCard(
   deckId: string,
   front: string,
-  back: string
+  back: string,
+  type: "basic" | "reversible" | "typed" = "basic",
+  supabase: SupabaseClient<Database>
 ): Promise<Card> {
-  const supabase = createClient();
-  const userId = await getCurrentUserId();
+  // Log full Supabase response so empty error objects don't hide failures
+  const sanitizedFront = `${front ?? ""}`.trim();
+  const sanitizedBack = `${back ?? ""}`.trim();
+  const normalizedType = type || "basic";
+
+  if (!sanitizedFront || !sanitizedBack) {
+    console.error("[createCard] Missing required fields", {
+      deckId,
+      front: sanitizedFront,
+      back: sanitizedBack,
+      type: normalizedType,
+    });
+    throw new Error("Front and back are required to create a card");
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  console.log("[createCard] auth.getUser()", { user, authError });
+
+  if (authError) {
+    console.error("[createCard] auth.getUser error", authError);
+    throw authError;
+  }
+
+  if (!user || !user.id) {
+    throw new Error("No authenticated user in Supabase client");
+  }
+
+  const userId = user.id;
+
+  const payload = {
+    user_id: userId,
+    deck_id: deckId,
+    front: sanitizedFront,
+    back: sanitizedBack,
+    type: normalizedType,
+    state: "new",
+  };
 
   const { data, error } = await supabase
     .from("cards")
-    .insert({
-      user_id: userId,
-      deck_id: deckId,
-      front,
-      back,
-      state: "new",
-      due_at: new Date().toISOString(),
-      interval_days: 0,
-      ease: 2.5,
-      reps: 0,
-      lapses: 0,
-      suspended: false,
-    })
+    .insert(payload)
     .select()
     .single();
 
-  if (error) throw error;
+  console.log("[createCard] Supabase insert response", { data, error });
+
+  if (error) {
+    console.error("[createCard] Supabase insert failed", { error, payload });
+    throw error;
+  }
 
   // Update deck's updated_at
   await supabase
@@ -255,7 +290,8 @@ export async function deleteCard(id: string): Promise<void> {
 export async function updateCard(
   id: string,
   front: string,
-  back: string
+  back: string,
+  type?: "basic" | "reversible" | "typed"
 ): Promise<void> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
@@ -270,13 +306,20 @@ export async function updateCard(
 
   if (fetchError) throw fetchError;
 
+  const updateData: any = {
+    front,
+    back,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Only update type if provided
+  if (type !== undefined) {
+    updateData.type = type;
+  }
+
   const { error } = await supabase
     .from("cards")
-    .update({
-      front,
-      back,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", id)
     .eq("user_id", userId);
 

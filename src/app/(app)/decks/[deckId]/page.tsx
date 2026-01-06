@@ -16,7 +16,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Breadcrumb } from "@/components/Breadcrumb";
-import { RichCardInput } from "@/components/RichCardInput";
 import { Trash2, Plus, BookOpen, Upload, List, Edit, Pause, Play } from "lucide-react";
 import {
   createCard,
@@ -33,10 +32,19 @@ import {
   getDeckAndAllChildren,
   formatInterval,
 } from "@/store/decks";
+import { createClient } from "@/lib/supabase/client";
 import { ImportDialog } from "@/components/ImportDialog";
 import { MoveCardsDialog } from "@/components/MoveCardsDialog";
 import type { Card as CardType, Deck } from "@/lib/db";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CARD_TYPES, type CardType as CardTypeEnum } from "@/lib/card-types";
 
 // Helper to get next review text
 function getNextReviewText(card: CardType): string {
@@ -56,6 +64,7 @@ function getNextReviewText(card: CardType): string {
 export default function DeckDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const supabase = createClient();
   const deckId = params.deckId as string;
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,9 +81,11 @@ export default function DeckDetailPage() {
   }>({ new: 0, learning: 0, review: 0 });
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
+  const [cardType, setCardType] = useState<CardTypeEnum>("basic");
   const [editCardId, setEditCardId] = useState<string | null>(null);
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
+  const [editCardType, setEditCardType] = useState<CardTypeEnum>("basic");
   const [breadcrumbItems, setBreadcrumbItems] = useState<
     { label: string; href?: string }[]
   >([]);
@@ -168,9 +179,10 @@ export default function DeckDetailPage() {
 
     try {
       const normalizedDeckId = String(deckId);
-      await createCard(normalizedDeckId, front.trim(), back.trim());
+      await createCard(normalizedDeckId, front.trim(), back.trim(), cardType, supabase);
       setFront("");
       setBack("");
+      setCardType("basic"); // Reset to default
       setDialogOpen(false);
       await loadDeck(); // Reload counts
       if (browseMode) {
@@ -211,13 +223,14 @@ export default function DeckDetailPage() {
     setEditCardId(card.id);
     setEditFront(card.front);
     setEditBack(card.back);
+    setEditCardType((card.type as CardTypeEnum) || "basic");
   };
 
   const handleSaveEdit = async () => {
     if (!editCardId || !editFront.trim() || !editBack.trim()) return;
 
     try {
-      await updateCard(editCardId, editFront.trim(), editBack.trim());
+      await updateCard(editCardId, editFront.trim(), editBack.trim(), editCardType);
       setEditCardId(null);
       await loadDeck(); // Reload counts
       if (browseMode) {
@@ -907,18 +920,41 @@ export default function DeckDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <RichCardInput
-              label="Front"
-              value={front}
-              onChange={setFront}
-              placeholder="Question or front text"
-            />
-            <RichCardInput
-              label="Back"
-              value={back}
-              onChange={setBack}
-              placeholder="Answer or back text"
-            />
+            <div>
+              <label className="mb-2 block text-sm font-medium">Card Type</label>
+              <Select value={cardType} onValueChange={(value) => setCardType(value as CardTypeEnum)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CARD_TYPES.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      <div>
+                        <div className="font-medium">{type.label}</div>
+                        <div className="text-xs text-muted-foreground">{type.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* contenteditable cannot live inside transformed elements (DialogContent uses transforms), so card inputs use textarea */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Front</label>
+              <Textarea
+                value={front}
+                onChange={(e) => setFront(e.target.value)}
+                placeholder="Question or front text"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Back</label>
+              <Textarea
+                value={back}
+                onChange={(e) => setBack(e.target.value)}
+                placeholder="Answer or back text"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -935,22 +971,44 @@ export default function DeckDetailPage() {
           <DialogHeader>
             <DialogTitle>Edit card</DialogTitle>
             <DialogDescription>
-              Update the front and back of this card.
+              Update the front, back, and type of this card.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <RichCardInput
-              label="Front"
-              value={editFront}
-              onChange={setEditFront}
-              placeholder="Question or front text"
-            />
-            <RichCardInput
-              label="Back"
-              value={editBack}
-              onChange={setEditBack}
-              placeholder="Answer or back text"
-            />
+            <div>
+              <label className="mb-2 block text-sm font-medium">Card Type</label>
+              <Select value={editCardType} onValueChange={(value) => setEditCardType(value as CardTypeEnum)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CARD_TYPES.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      <div>
+                        <div className="font-medium">{type.label}</div>
+                        <div className="text-xs text-muted-foreground">{type.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Front</label>
+              <Textarea
+                value={editFront}
+                onChange={(e) => setEditFront(e.target.value)}
+                placeholder="Question or front text"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Back</label>
+              <Textarea
+                value={editBack}
+                onChange={(e) => setEditBack(e.target.value)}
+                placeholder="Answer or back text"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCardId(null)}>

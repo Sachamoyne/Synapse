@@ -25,6 +25,10 @@ import { getSettings } from "@/lib/supabase-db";
 import type { Card as CardType, Deck, IntervalPreview } from "@/lib/db";
 import { Edit, Pause, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { BasicCard } from "@/components/cards/BasicCard";
+import { ReversibleCard } from "@/components/cards/ReversibleCard";
+import { TypedCard } from "@/components/cards/TypedCard";
+import type { CardType as CardTypeEnum } from "@/lib/card-types";
 
 // Session requeue to mimic Anki learning behavior
 // Cards marked "Again" reappear in the same session after a short delay
@@ -225,63 +229,13 @@ export function StudyCard({
     }
   };
 
-  // Keyboard shortcuts
+  // Note: Keyboard shortcuts are now handled by individual card type components
+  // to support different interaction patterns (e.g., typed cards need input focus)
+
+  // Calculate interval previews when card changes
+  // Each card type component decides when to display them
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
-      if (!currentCard) return;
-
-      // Space: show answer if front visible
-      if (e.key === " " && !showBack) {
-        e.preventDefault();
-        setShowBack(true);
-        return;
-      }
-
-      // Enter: Easy rating if back visible, otherwise same as Space
-      // This mimics Anki behavior where Enter = Easy (not Good)
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (showBack) {
-          handleRate("easy");
-        } else {
-          setShowBack(true);
-        }
-        return;
-      }
-
-      // Rating keys (only work when back is visible)
-      if (showBack) {
-        if (e.key === "1") {
-          e.preventDefault();
-          handleRate("again");
-        } else if (e.key === "2") {
-          e.preventDefault();
-          handleRate("hard");
-        } else if (e.key === "3") {
-          e.preventDefault();
-          handleRate("good");
-        } else if (e.key === "4") {
-          e.preventDefault();
-          handleRate("easy");
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showBack, currentCard, handleRate]);
-
-  // Calculate interval previews when card changes or back is shown
-  useEffect(() => {
-    if (!currentCard || !showBack) {
+    if (!currentCard) {
       setIntervalPreviews(null);
       return;
     }
@@ -315,7 +269,7 @@ export function StudyCard({
     }
 
     loadPreviews();
-  }, [currentCard, showBack]);
+  }, [currentCard]);
 
   if (queue.length === 0 || !currentCard) {
     return (
@@ -414,137 +368,44 @@ export function StudyCard({
             </div>
           )}
 
-          {/* Card container - larger, more breathing room */}
-          <div className="relative w-full">
-            <div
-              className="relative w-full min-h-[400px]"
-              style={{
-                transformStyle: "preserve-3d",
-                transform: showBack ? "rotateY(180deg)" : "rotateY(0deg)",
-                transition: "transform 0.3s ease-in-out",
-              }}
-            >
-              {/* Front face */}
-              <Card
-                className="absolute inset-0 w-full min-h-[400px] shadow-lg border-border/50"
-                style={{
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                  transform: "rotateY(0deg)",
-                }}
-              >
-                <CardContent className="flex min-h-[400px] flex-col items-center justify-center p-12">
-                  <div className="text-center max-w-2xl">
-                    <div
-                      className="text-3xl leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:mx-auto [&_img]:rounded-md [&_img]:shadow-sm"
-                      dangerouslySetInnerHTML={{ __html: currentCard.front }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Dispatch to appropriate card type component */}
+          {(() => {
+            // Get card type, defaulting to 'basic' for backward compatibility
+            const cardType = (currentCard.type as CardTypeEnum) || "basic";
 
-              {/* Back face */}
-              <Card
-                className="absolute inset-0 w-full min-h-[400px] shadow-lg border-border/50"
-                style={{
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                  transform: "rotateY(180deg)",
-                }}
-              >
-                <CardContent className="flex min-h-[400px] flex-col items-center justify-center p-12">
-                  <div className="text-center max-w-2xl">
-                    <div
-                      className="text-3xl leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4 [&_img]:mx-auto [&_img]:rounded-md [&_img]:shadow-sm"
-                      dangerouslySetInnerHTML={{ __html: currentCard.back }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+            switch (cardType) {
+              case "reversible":
+                return (
+                  <ReversibleCard
+                    card={currentCard}
+                    onRate={handleRate}
+                    intervalPreviews={intervalPreviews}
+                    ratingFlash={ratingFlash}
+                  />
+                );
 
-          {/* Action buttons */}
-          <div className="flex flex-col gap-4 w-full max-w-xl">
-            {!showBack ? (
-              <Button
-                onClick={() => setShowBack(true)}
-                size="lg"
-                disabled={!currentCard}
-                className="h-14 text-base"
-              >
-                Show answer
-              </Button>
-            ) : (
-              currentCard && (
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleRate("again")}
-                    size="lg"
-                    className={cn(
-                      "transition-all flex flex-col h-auto py-4",
-                      ratingFlash === "again" && "scale-105 ring-2 ring-destructive"
-                    )}
-                  >
-                    <span className="font-medium">Again</span>
-                    {intervalPreviews && (
-                      <span className="text-xs opacity-70 mt-1">
-                        {intervalPreviews.again}
-                      </span>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleRate("hard")}
-                    size="lg"
-                    className={cn(
-                      "transition-all flex flex-col h-auto py-4",
-                      ratingFlash === "hard" && "scale-105 ring-2 ring-ring"
-                    )}
-                  >
-                    <span className="font-medium">Hard</span>
-                    {intervalPreviews?.hard && (
-                      <span className="text-xs opacity-70 mt-1">
-                        {intervalPreviews.hard}
-                      </span>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => handleRate("good")}
-                    size="lg"
-                    className={cn(
-                      "transition-all flex flex-col h-auto py-4",
-                      ratingFlash === "good" && "scale-105 ring-2 ring-primary"
-                    )}
-                  >
-                    <span className="font-medium">Good</span>
-                    {intervalPreviews && (
-                      <span className="text-xs opacity-70 mt-1">
-                        {intervalPreviews.good}
-                      </span>
-                    )}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleRate("easy")}
-                    size="lg"
-                    className={cn(
-                      "transition-all flex flex-col h-auto py-4",
-                      ratingFlash === "easy" && "scale-105 ring-2 ring-secondary"
-                    )}
-                  >
-                    <span className="font-medium">Easy</span>
-                    {intervalPreviews && (
-                      <span className="text-xs opacity-70 mt-1">
-                        {intervalPreviews.easy}
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              )
-            )}
-          </div>
+              case "typed":
+                return (
+                  <TypedCard
+                    card={currentCard}
+                    onRate={handleRate}
+                    intervalPreviews={intervalPreviews}
+                    ratingFlash={ratingFlash}
+                  />
+                );
+
+              case "basic":
+              default:
+                return (
+                  <BasicCard
+                    card={currentCard}
+                    onRate={handleRate}
+                    intervalPreviews={intervalPreviews}
+                    ratingFlash={ratingFlash}
+                  />
+                );
+            }
+          })()}
         </div>
       </div>
 

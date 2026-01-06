@@ -17,6 +17,7 @@ import { createDeck, createCard, getDueCount, getDeckCardCounts } from "@/store/
 import type { Deck } from "@/lib/db";
 import { ChevronRight, ChevronDown, BookOpen, Plus } from "lucide-react";
 import { DeckSettingsMenu } from "@/components/DeckSettingsMenu";
+import { createClient } from "@/lib/supabase/client";
 
 // Helper: Get all descendant deck IDs (recursive)
 function getAllDescendants(deckId: string, allDecks: Deck[]): string[] {
@@ -87,6 +88,7 @@ export function DeckTree({
   onDeckDeleted,
 }: DeckTreeProps) {
   const router = useRouter();
+  const supabase = createClient();
   // Default to collapsed (false) for cleaner initial UI, matching Anki's behavior
   const [expanded, setExpanded] = useState(false);
   const [subDeckDialogOpen, setSubDeckDialogOpen] = useState(false);
@@ -139,7 +141,7 @@ export function DeckTree({
     if (!cardFront.trim() || !cardBack.trim()) return;
 
     try {
-      await createCard(deck.id, cardFront.trim(), cardBack.trim());
+      await createCard(deck.id, cardFront.trim(), cardBack.trim(), "basic", supabase);
       setCardFront("");
       setCardBack("");
       setAddCardDialogOpen(false);
@@ -197,9 +199,9 @@ export function DeckTree({
 
             if (learningCounts[deck.id] !== undefined) {
               return (
-                <div className="grid grid-cols-4 w-40 gap-1">
+                <div className="grid grid-cols-4 w-52 gap-3">
                   <span
-                    className={`text-xs font-medium text-right ${
+                    className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.new > 0
                         ? "text-blue-600"
                         : "text-gray-400"
@@ -208,7 +210,7 @@ export function DeckTree({
                     {counts.new}
                   </span>
                   <span
-                    className={`text-xs font-medium text-right ${
+                    className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.learning > 0
                         ? "text-orange-600"
                         : "text-gray-400"
@@ -217,7 +219,7 @@ export function DeckTree({
                     {counts.learning}
                   </span>
                   <span
-                    className={`text-xs font-medium text-right ${
+                    className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.review > 0
                         ? "text-green-600"
                         : "text-gray-400"
@@ -225,15 +227,15 @@ export function DeckTree({
                   >
                     {counts.review}
                   </span>
-                  <span className="text-xs text-gray-500 text-right">
+                  <span className="text-xs text-gray-500 text-right whitespace-nowrap">
                     ({totalCards})
                   </span>
                 </div>
               );
             }
             return (
-              <div className="w-40 text-right">
-                <span className="text-xs text-gray-500">
+              <div className="w-52 text-right">
+                <span className="text-xs text-gray-500 whitespace-nowrap">
                   {totalCards}
                 </span>
               </div>
@@ -321,21 +323,37 @@ export function DeckTree({
               <Input
                 placeholder="Question or front text"
                 value={cardFront}
-                onChange={(e) => setCardFront(e.target.value)}
+                onChange={(e) => {
+                  console.log("🔍 RAW INPUT (Front):", e.target.value);
+                  console.log("🔍 Is reversed?:", e.target.value === e.target.value.split("").reverse().join(""));
+                  setCardFront(e.target.value);
+                  console.log("✅ State will be set to:", e.target.value);
+                }}
               />
+              <div className="mt-1 text-xs text-muted-foreground">
+                DEBUG State: {cardFront} | Reversed: {cardFront.split("").reverse().join("")}
+              </div>
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium">Back</label>
               <Input
                 placeholder="Answer or back text"
                 value={cardBack}
-                onChange={(e) => setCardBack(e.target.value)}
+                onChange={(e) => {
+                  console.log("🔍 RAW INPUT (Back):", e.target.value);
+                  console.log("🔍 Is reversed?:", e.target.value === e.target.value.split("").reverse().join(""));
+                  setCardBack(e.target.value);
+                  console.log("✅ State will be set to:", e.target.value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && cardFront.trim() && cardBack.trim()) {
                     handleCreateCard();
                   }
                 }}
               />
+              <div className="mt-1 text-xs text-muted-foreground">
+                DEBUG State: {cardBack} | Reversed: {cardBack.split("").reverse().join("")}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -349,4 +367,3 @@ export function DeckTree({
     </div>
   );
 }
-

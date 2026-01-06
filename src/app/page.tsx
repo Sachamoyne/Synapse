@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { AICardGenerationDemo } from "@/components/AICardGenerationDemo";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default async function LandingPage() {
   const supabase = await createClient();
@@ -21,7 +22,7 @@ export default async function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background via-background to-primary/5">
       {/* Hero Section */}
-      <section className="relative overflow-hidden px-4 py-20 sm:py-32">
+      <section className="relative overflow-x-hidden px-4 py-20 sm:py-32">
         {/* Gradient orbs */}
         <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute -right-40 top-60 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
@@ -30,18 +31,26 @@ export default async function LandingPage() {
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 items-center">
             {/* Left: Content */}
             <div className="text-center lg:text-left">
+              {/* Logo + Nom Synapse */}
+              <div className="mb-8 flex items-center justify-center gap-4 lg:justify-start animate-fade-in-up overflow-visible">
+                <BrandLogo size={60} iconSize={36} />
+                <h1 className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl leading-none pb-2">
+                  {APP_NAME}
+                </h1>
+              </div>
+
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-primary/10 px-4 py-2 text-sm font-medium text-primary animate-fade-in-up">
                 <Sparkles className="h-4 w-4" />
                 AI-Powered Learning
               </div>
 
-              <h1 className="mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl lg:text-7xl animate-fade-in-up">
+              <h2 className="mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl lg:text-6xl animate-fade-in-up">
                 Master anything,
                 <br />
                 <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                   remember everything
                 </span>
-              </h1>
+              </h2>
 
               <p className="mb-8 text-lg text-muted-foreground sm:text-xl lg:text-2xl animate-fade-in-up leading-relaxed">
                 {APP_TAGLINE}. Powered by AI and backed by science.

@@ -111,6 +111,29 @@ export default function DecksPage() {
               </div>
             ) : (
               <div className="rounded-xl border bg-white overflow-hidden h-full flex flex-col">
+                {/* Header explicatif - aligné avec les colonnes des decks */}
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-50/50 border-b">
+                  {/* Left: Espace pour chevron + icon + nom */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-4" />
+                    <span className="text-xs font-medium text-muted-foreground">Deck</span>
+                  </div>
+
+                  {/* Right: Labels alignés avec les colonnes de chiffres */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {/* Grille identique à celle de DeckTree pour alignement parfait */}
+                    <div className="grid grid-cols-4 w-52 gap-3">
+                      <span className="text-xs font-medium text-muted-foreground text-right whitespace-nowrap">New</span>
+                      <span className="text-xs font-medium text-muted-foreground text-right whitespace-nowrap">Learning</span>
+                      <span className="text-xs font-medium text-muted-foreground text-right whitespace-nowrap">Review</span>
+                      <span className="text-xs font-medium text-muted-foreground text-right whitespace-nowrap">Total</span>
+                    </div>
+
+                    {/* Espace pour les actions (boutons hover) - invisible dans header */}
+                    <div className="w-16" />
+                  </div>
+                </div>
+
                 <div className="flex-1 overflow-y-auto">
                   {rootDecks.map((deck) => (
                     <DeckTree

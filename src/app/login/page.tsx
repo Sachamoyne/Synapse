@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Brain, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { LoginCardGenerationPreview } from "@/components/LoginCardGenerationPreview";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -68,7 +69,7 @@ export default function LoginPage() {
             <div className="mx-auto w-full max-w-xl space-y-8">
               {/* Logo for mobile */}
               <div className="flex items-center gap-2 lg:hidden">
-                <Brain className="h-8 w-8 text-primary" />
+                <BrandLogo size={40} iconSize={24} />
                 <span className="text-2xl font-bold">{APP_NAME}</span>
               </div>
 
@@ -112,9 +113,7 @@ export default function LoginPage() {
                 <CardHeader className="space-y-4 text-center pb-6">
                   {/* Logo */}
                   <div className="flex flex-col items-center gap-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg">
-                      <Brain className="h-8 w-8 text-white" />
-                    </div>
+                    <BrandLogo />
                     <div>
                       <h2 className="text-2xl font-bold">{APP_NAME}</h2>
                       <p className="text-sm text-muted-foreground mt-1">
