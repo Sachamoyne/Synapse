@@ -3,6 +3,8 @@ import AdmZip from "adm-zip";
 import Database from "better-sqlite3";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
+import { tmpdir } from "os";
+import { join } from "path";
 
 // Helper: Parse Anki deck hierarchy
 // "Parent::Child::Grandchild" -> ["Parent", "Child", "Grandchild"]
@@ -236,11 +238,23 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
+    // Verify Supabase environment variables are set
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceKey) {
+      console.error("[ANKI IMPORT] Missing Supabase environment variables");
+      return NextResponse.json({
+        error: "Server configuration error",
+        details: "Supabase service key is missing. Please check your environment variables."
+      }, { status: 500 });
+    }
+
     // Create Supabase admin client (bypasses RLS) for database operations
     // This is safe because we already validated the user's JWT above
     const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      supabaseUrl,
+      serviceKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -389,10 +403,11 @@ export async function POST(request: NextRequest) {
 
     console.log("[ANKI IMPORT] Using collection file:", collectionEntry.entryName);
 
-    // Extract to temp file with unique name
-    const tempPath = `/tmp/anki-${randomUUID()}.anki2`;
+    // Extract to temp file with unique name (cross-platform)
+    const tempPath = join(tmpdir(), `anki-${randomUUID()}.anki2`);
     const collectionData = collectionEntry.getData();
-    require("fs").writeFileSync(tempPath, collectionData);
+    const fs = require("fs");
+    fs.writeFileSync(tempPath, collectionData);
 
     const db = new Database(tempPath);
 
