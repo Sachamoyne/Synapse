@@ -21,7 +21,7 @@ export function AppSidebar() {
   return (
     <div
       className={cn(
-        "flex h-full flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0",
+        "flex h-full flex-col border-r border-white/10 bg-slate-950/70 backdrop-blur-md transition-all duration-300 ease-in-out shrink-0",
         // Clean layout: sidebar is either fully open (w-64) or completely hidden (w-0)
         // When closed, it's taken out of the flex flow on mobile via fixed position
         // On desktop, it stays in flow but with w-0 so no space is taken
@@ -31,8 +31,8 @@ export function AppSidebar() {
       )}
     >
       {/* Header */}
-      <div className="flex h-20 items-center justify-center border-b border-slate-200 px-8 overflow-hidden">
-        <h1 className="text-lg font-semibold tracking-wide whitespace-nowrap text-slate-900">
+      <div className="flex h-20 items-center justify-center border-b border-white/10 px-8 overflow-hidden">
+        <h1 className="text-lg font-semibold tracking-wide whitespace-nowrap text-white/90">
           {APP_NAME}
         </h1>
       </div>
@@ -49,11 +49,16 @@ export function AppSidebar() {
               className={cn(
                 "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-medium tracking-[0.08em] transition-all",
                 isActive
-                  ? "bg-slate-100 text-slate-900 before:absolute before:left-0 before:top-2.5 before:h-5 before:w-0.5 before:rounded-full before:bg-primary"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  ? "bg-white/10 text-white before:absolute before:left-0 before:top-2.5 before:h-5 before:w-0.5 before:rounded-full before:bg-white/70"
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
               )}
             >
-              <Icon className="h-4 w-4 shrink-0 stroke-[1.5]" />
+              <Icon
+                className={cn(
+                  "h-4 w-4 shrink-0 stroke-[1.5]",
+                  isActive ? "text-white" : "text-white/60"
+                )}
+              />
               <span className="whitespace-nowrap">
                 {item.label}
               </span>

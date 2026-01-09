@@ -112,7 +112,7 @@ export default function AddCardsPage() {
                 value={cardType}
                 onValueChange={(value) => setCardType(value as CardTypeEnum)}
               >
-                <SelectTrigger className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 shadow-sm flex items-center justify-between text-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-indigo-500">
+                <SelectTrigger className="h-11 w-full rounded-lg border border-white/15 bg-white/10 px-4 shadow-sm flex items-center justify-between text-sm text-white/80 hover:border-white/30 focus-visible:ring-2 focus-visible:ring-white/40">
                   <SelectValue className="leading-none text-sm" />
                 </SelectTrigger>
                 <SelectContent>

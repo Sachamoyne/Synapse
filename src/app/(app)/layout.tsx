@@ -15,7 +15,7 @@ export default function AppLayout({
   // Full-screen mode for study pages (no sidebar)
   if (isStudyPage) {
     return (
-      <div className="flex h-screen w-screen overflow-hidden">
+      <div className="app-shell flex h-screen w-screen overflow-hidden bg-gradient-to-b from-background via-background to-muted/40 text-foreground">
         {children}
       </div>
     );
@@ -24,7 +24,7 @@ export default function AppLayout({
   // Normal layout with sidebar for other pages
   return (
     <SidebarProvider>
-      <div className="flex h-screen overflow-hidden">
+      <div className="app-shell flex h-screen overflow-hidden bg-gradient-to-b from-background via-background to-muted/40 text-foreground">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           {children}
@@ -33,4 +33,3 @@ export default function AppLayout({
     </SidebarProvider>
   );
 }
-

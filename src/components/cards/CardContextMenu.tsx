@@ -32,11 +32,11 @@ export function CardContextMenu({
   const itemClassName =
     "w-full px-3 py-2 text-left cursor-pointer select-none outline-none " +
     "hover:bg-muted focus-visible:bg-muted active:bg-muted/70";
-  const warningTextClassName = "text-amber-700";
+  const warningTextClassName = "text-amber-300";
 
   return (
     <div
-      className="fixed z-50 min-w-56 rounded-md border bg-white shadow-lg py-1 text-sm"
+      className="fixed z-50 min-w-56 rounded-md border border-white/10 bg-card shadow-lg py-1 text-sm text-foreground"
       style={{ top: y, left: x }}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}

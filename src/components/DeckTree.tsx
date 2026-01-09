@@ -108,7 +108,7 @@ export function DeckTree({
   return (
     <div>
       <div
-        className="flex items-center justify-between px-3 py-1.5 border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer group"
+        className="flex items-center justify-between px-3 py-1.5 border-b border-white/10 last:border-b-0 hover:bg-white/5 transition-colors cursor-pointer group"
         style={{ paddingLeft: `${12 + indent}px` }}
         onClick={handleDeckClick}
         onKeyDown={(e) => {
@@ -126,20 +126,20 @@ export function DeckTree({
           {hasChildren ? (
             <button
               onClick={handleExpandClick}
-              className="p-0.5 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+              className="p-0.5 hover:bg-white/10 rounded transition-colors flex-shrink-0"
               aria-label={expanded ? "Collapse" : "Expand"}
             >
               {expanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-gray-600" />
+                <ChevronDown className="h-3.5 w-3.5 text-white/70" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+                <ChevronRight className="h-3.5 w-3.5 text-white/70" />
               )}
             </button>
           ) : (
             <div className="w-4" />
           )}
-          <BookOpen className="h-4 w-4 text-gray-500 flex-shrink-0" />
-          <span className="font-medium text-sm text-gray-900 truncate">
+          <BookOpen className="h-4 w-4 text-white/60 flex-shrink-0" />
+          <span className="font-medium text-sm text-white/90 truncate">
             {deck.name}
           </span>
         </div>
@@ -157,8 +157,8 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.new > 0
-                        ? "text-blue-600"
-                        : "text-gray-400"
+                        ? "text-sky-300"
+                        : "text-white/40"
                     }`}
                   >
                     {counts.new}
@@ -166,8 +166,8 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.learning > 0
-                        ? "text-orange-600"
-                        : "text-gray-400"
+                        ? "text-amber-300"
+                        : "text-white/40"
                     }`}
                   >
                     {counts.learning}
@@ -175,13 +175,13 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.review > 0
-                        ? "text-green-600"
-                        : "text-gray-400"
+                        ? "text-emerald-300"
+                        : "text-white/40"
                     }`}
                   >
                     {counts.review}
                   </span>
-                  <span className="text-xs text-gray-500 text-right whitespace-nowrap">
+                  <span className="text-xs text-white/50 text-right whitespace-nowrap">
                     ({totalCards})
                   </span>
                 </div>
@@ -189,7 +189,7 @@ export function DeckTree({
             }
             return (
               <div className="w-52 text-right">
-                <span className="text-xs text-gray-500 whitespace-nowrap">
+                <span className="text-xs text-white/50 whitespace-nowrap">
                   {totalCards}
                 </span>
               </div>
@@ -203,7 +203,7 @@ export function DeckTree({
               variant="ghost"
               onClick={handleAddCardClick}
               aria-label="Add card"
-              className="h-7 px-2 text-xs hover:bg-gray-200"
+              className="h-7 px-2 text-xs hover:bg-white/10"
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>

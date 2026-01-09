@@ -4,139 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
-import { ArrowRight, Brain, Layers, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, Brain, Layers, Sparkles } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
-const defaultPrompt = "Victor Hugo est mort en 1885";
-
-const stripPunctuation = (value: string) =>
-  value.replace(/[.!?]$/, "").trim();
-
-const buildFlashcard = (prompt: string) => {
-  const cleaned = prompt.trim();
-  if (cleaned.length < 8) {
-    return {
-      front: "En quelle annee est mort Victor Hugo ?",
-      back: "1885",
-    };
-  }
-
-  const sentence = stripPunctuation(cleaned.split(".")[0] || cleaned);
-
-  const deathMatch = sentence.match(/^(.+?) est mort en (\d{3,4})/i);
-  if (deathMatch) {
-    return {
-      front: `En quelle annee est mort ${deathMatch[1].trim()} ?`,
-      back: deathMatch[2],
-    };
-  }
-
-  const capitalMatch = sentence.match(/^La capitale de (.+?) est (.+)$/i);
-  if (capitalMatch) {
-    return {
-      front: `Quelle est la capitale de ${capitalMatch[1].trim()} ?`,
-      back: stripPunctuation(capitalMatch[2]),
-    };
-  }
-
-  const equationMatch = sentence.match(/^(.+?)\s*=\s*(.+)$/);
-  if (equationMatch) {
-    return {
-      front: `Combien font ${equationMatch[1].trim()} ?`,
-      back: stripPunctuation(equationMatch[2]),
-    };
-  }
-
-  const motiveMatch = sentence.match(/^(.+?) a (.+?) pour (.+)$/i);
-  if (motiveMatch) {
-    return {
-      front: `Pourquoi ${motiveMatch[1].trim()} a-t-il ${motiveMatch[2].trim()} ?`,
-      back: `Pour ${stripPunctuation(motiveMatch[3])}`,
-    };
-  }
-
-  const becauseMatch = sentence.match(/^(.+?) parce que (.+)$/i);
-  if (becauseMatch) {
-    return {
-      front: `Pourquoi ${becauseMatch[1].trim()} ?`,
-      back: `Parce que ${stripPunctuation(becauseMatch[2])}`,
-    };
-  }
-
-  const eventMatch = sentence.match(/^(.+?) a eu lieu en (\d{3,4})/i);
-  if (eventMatch) {
-    return {
-      front: `En quelle annee a eu lieu ${eventMatch[1].trim()} ?`,
-      back: eventMatch[2],
-    };
-  }
-
-  const principleMatch = sentence.match(/^Le principe d'?(.+?) est (.+)$/i);
-  if (principleMatch) {
-    return {
-      front: `Quel est le principe d'${principleMatch[1].trim()} ?`,
-      back: stripPunctuation(principleMatch[2]),
-    };
-  }
-
-  const genericMatch = sentence.match(/^(.+?) est (.+)$/i);
-  if (genericMatch) {
-    return {
-      front: `Qu'est-ce que ${genericMatch[1].trim()} ?`,
-      back: stripPunctuation(genericMatch[2]),
-    };
-  }
-
-  const pluralMatch = sentence.match(/^(.+?) sont (.+)$/i);
-  if (pluralMatch) {
-    return {
-      front: `Que sont ${pluralMatch[1].trim()} ?`,
-      back: stripPunctuation(pluralMatch[2]),
-    };
-  }
-
-  return {
-    front: "De quoi parle cette phrase ?",
-    back: sentence,
-  };
-};
-
-const generateSmartFlashcard = async (prompt: string) => {
-  const apiUrl = process.env.NEXT_PUBLIC_FLASHCARD_API_URL;
-  if (apiUrl) {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt:
-          "Transforme cette phrase en une flashcard Anki. Renvoie uniquement un objet JSON avec 'front' et 'back'.",
-        input: prompt,
-      }),
-    });
-    if (response.ok) {
-      const data = await response.json();
-      if (data?.front && data?.back) {
-        return { front: String(data.front), back: String(data.back) };
-      }
-    }
-  }
-
-  return buildFlashcard(prompt);
-};
-
 export default function LandingPage() {
   const [userPresent, setUserPresent] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [inputPlaceholder, setInputPlaceholder] = useState(
-    "Que souhaitez-vous memoriser aujourd'hui ?"
-  );
-  const [flashcard, setFlashcard] = useState(() => buildFlashcard(defaultPrompt));
-  const [typedFront, setTypedFront] = useState(flashcard.front);
-  const [typedBack, setTypedBack] = useState(flashcard.back);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [betaEmail, setBetaEmail] = useState("");
+  const [betaLoading, setBetaLoading] = useState(false);
+  const [betaSuccess, setBetaSuccess] = useState(false);
+  const [betaError, setBetaError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -155,55 +33,41 @@ export default function LandingPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isAnimating) {
+  const handleBetaSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (betaLoading) return;
+
+    const trimmed = betaEmail.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      setBetaError("Please enter a valid email.");
+      setBetaSuccess(false);
       return;
     }
 
-    setTypedFront("");
-    setTypedBack("");
+    setBetaLoading(true);
+    setBetaError(null);
 
-    let frontIndex = 0;
-    let backIndex = 0;
-    const frontText = flashcard.front;
-    const backText = flashcard.back;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("beta_waitlist")
+        .insert({ email: trimmed });
 
-    const timer = window.setInterval(() => {
-      if (frontIndex < frontText.length) {
-        frontIndex += 1;
-        setTypedFront(frontText.slice(0, frontIndex));
-        return;
+      if (error) {
+        console.error("beta_waitlist insert error", error);
+        if ((error as { code?: string }).code === "23505") {
+          setBetaError("You're already on the list.");
+        } else {
+          setBetaError("Something went wrong. Please try again.");
+        }
+        setBetaSuccess(false);
+      } else {
+        setBetaSuccess(true);
+        setBetaEmail("");
       }
-      if (backIndex < backText.length) {
-        backIndex += 1;
-        setTypedBack(backText.slice(0, backIndex));
-        return;
-      }
-      window.clearInterval(timer);
-      setIsAnimating(false);
-    }, 18);
-
-    return () => window.clearInterval(timer);
-  }, [flashcard, isAnimating]);
-
-  const handleGenerate = () => {
-    if (isProcessing || isAnimating) return;
-    const trimmed = inputValue.trim();
-    if (!trimmed) {
-      setInputPlaceholder("Veuillez saisir une information a memoriser...");
-      return;
+    } finally {
+      setBetaLoading(false);
     }
-    setInputPlaceholder("Que souhaitez-vous memoriser aujourd'hui ?");
-    setTypedFront("IA en cours de reflexion...");
-    setTypedBack("IA en cours de reflexion...");
-    setIsProcessing(true);
-    window.setTimeout(async () => {
-      const nextCard = await generateSmartFlashcard(trimmed);
-      setFlashcard(nextCard);
-      setInputValue("");
-      setIsProcessing(false);
-      setIsAnimating(true);
-    }, 1200);
   };
 
   return (
@@ -267,45 +131,59 @@ export default function LandingPage() {
               </div>
             )}
 
-            <div className="mx-auto mt-10 w-full max-w-2xl rounded-3xl border border-white/20 bg-white/10 p-4 shadow-xl shadow-white/10 backdrop-blur">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <input
-                  className="h-12 w-full flex-1 rounded-full border border-white/10 bg-white/10 px-5 text-sm text-white/80 placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={inputPlaceholder}
-                  value={inputValue}
-                  onChange={(event) => setInputValue(event.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={isProcessing || isAnimating}
-                  className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-xs font-semibold uppercase tracking-[0.25em] text-slate-900 shadow-lg shadow-white/20 transition hover:shadow-xl hover:shadow-white/30 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isProcessing || isAnimating ? "Generation..." : "Generer Flashcard"}
-                  <Wand2 className="h-4 w-4" />
-                </button>
+            <div className="mx-auto mt-10 w-full max-w-2xl">
+              <div
+                className={`rounded-3xl border border-white/20 bg-white/10 p-4 shadow-xl shadow-white/10 backdrop-blur transition-all duration-200 ${
+                  betaSuccess
+                    ? "pointer-events-none opacity-0 translate-y-2"
+                    : "opacity-100 translate-y-0"
+                } motion-reduce:transition-none`}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    type="email"
+                    className="h-12 w-full flex-1 rounded-full border border-white/15 bg-white/10 px-5 text-sm text-white/80 placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
+                    placeholder="Enter your email to get beta access"
+                    value={betaEmail}
+                    onChange={(event) => {
+                      setBetaEmail(event.target.value);
+                      if (betaError) setBetaError(null);
+                      if (betaSuccess) setBetaSuccess(false);
+                    }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={handleBetaSubmit}
+                    disabled={betaLoading}
+                    className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-slate-900 shadow-lg shadow-white/20 transition hover:shadow-xl hover:shadow-white/30 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {betaLoading ? "Joining..." : "Join the beta"}
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-col items-center gap-2 text-xs uppercase tracking-[0.35em] text-white/60">
+                  <span>Private beta - Early access</span>
+                  {betaError ? (
+                    <span className="text-sm normal-case text-amber-200">
+                      {betaError}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            </div>
 
-            <div className="relative mx-auto mt-10 max-w-xl rounded-3xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-xl">
-              {(isProcessing || isAnimating) && (
-                <div className="absolute right-5 top-5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/70">
-                  AI Generating...
+              {betaSuccess && (
+                <div className="mt-4 rounded-3xl border border-white/15 bg-white/10 px-6 py-5 text-center shadow-xl shadow-white/10 backdrop-blur transition-all duration-200 motion-reduce:transition-none">
+                  <p className={`${playfair.className} text-2xl text-white/90`}>
+                    You&apos;re in.
+                  </p>
+                  <p className="mt-2 text-sm text-white/60">
+                    You&apos;ll receive early access to the private beta.
+                  </p>
+                  <p className="mt-3 text-xs uppercase tracking-[0.35em] text-white/40">
+                    No spam. Only meaningful updates.
+                  </p>
                 </div>
               )}
-              <div className="text-xs uppercase tracking-[0.3em] text-white/50">Preview</div>
-              <div className="mt-5 space-y-4 text-left">
-                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm text-white/85">
-                  <p className={isProcessing || isAnimating ? "animate-shimmer" : ""}>
-                    {typedFront}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-sm text-white/70">
-                  <p className={isProcessing || isAnimating ? "animate-shimmer" : ""}>
-                    {typedBack}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -361,7 +239,6 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
       </div>
     </div>
   );

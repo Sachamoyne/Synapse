@@ -40,6 +40,36 @@
     --chart-4: 45 90% 55%;
     --chart-5: 160 55% 45%;
   }
+
+  .app-shell {
+    --background: 222 45% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 35% 12%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 35% 12%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 210 100% 95%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 222 25% 18%;
+    --muted-foreground: 215 20% 70%;
+
+    --accent: 217 30% 20%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 210 100% 85%;
+  }
 }
 
 @layer base {

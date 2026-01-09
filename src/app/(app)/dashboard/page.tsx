@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Topbar } from "@/components/shell/Topbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { listAllCards, getCurrentStreak, getSettings } from "@/store/decks";
+import { listAllCards, getCurrentStreak } from "@/store/decks";
 import {
   getReviewStatsBetween,
   useReviewsByDay,
   useHeatmapData,
   useCardDistribution,
 } from "@/lib/stats";
-import type { Settings } from "@/lib/db";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 import {
   LineChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -26,14 +25,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import {
-  Flame,
-  Target,
-  TrendingUp,
-  BarChart3,
-  Sparkles,
-  Gauge,
-} from "lucide-react";
+import { Flame, BarChart3, Sparkles, Target, TrendingUp } from "lucide-react";
 
 type ReviewStats = Awaited<ReturnType<typeof getReviewStatsBetween>>;
 
@@ -42,11 +34,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function formatPercent(value: number): string {
   if (!Number.isFinite(value)) return "0%";
   return `${Math.round(value * 100)}%`;
-}
-
-function formatDelta(value: number): string {
-  const sign = value > 0 ? "+" : value < 0 ? "" : "";
-  return `${sign}${Math.round(value * 100)}%`;
 }
 
 function formatMinutes(minutes: number): string {
@@ -58,15 +45,13 @@ function formatMinutes(minutes: number): string {
   return remaining > 0 ? `${hours} h ${remaining} min` : `${hours} h`;
 }
 
-function getMotivationLine(streak: number, studiedToday: number, weekDelta: number): string {
-  if (studiedToday === 0) return "Vous n'avez rien fait aujourd'hui — c'est une bonne journée pour recommencer.";
-  if (streak >= 7) return "Super régularité cette semaine. Continuez sur cette lancée.";
-  if (weekDelta > 0.1) return "Vous êtes en progrès par rapport à la semaine dernière.";
-  if (streak > 0) return "Belle constance. Chaque session compte.";
-  return "Vous êtes sur la bonne voie. Un petit effort aujourd'hui peut tout changer.";
-}
-
-function AdvancedStatsSection() {
+function AdvancedStatsSection({
+  masteredPct,
+  overallTotals,
+}: {
+  masteredPct: number;
+  overallTotals: { total: number; mastered: number };
+}) {
   const reviewsByDay = useReviewsByDay(30);
   const heatmapData = useHeatmapData(90);
   const cardDistribution = useCardDistribution();
@@ -97,7 +82,100 @@ function AdvancedStatsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
+      <Card className="shadow-sm hover:shadow-md transition-all">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 p-2">
+              <TrendingUp className="h-4 w-4 text-accent" />
+            </div>
+            <CardTitle className="text-lg font-bold">Révisions par jour (30 jours)</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {reviewsByDay !== undefined ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={reviewsByDay}>
+                <defs>
+                  <linearGradient id="lineGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f8fafc" stopOpacity={0.95} />
+                    <stop offset="60%" stopColor="#93c5fd" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.7} />
+                  </linearGradient>
+                  <linearGradient id="areaGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.25} />
+                    <stop offset="60%" stopColor="#1e3a8a" stopOpacity={0.08} />
+                    <stop offset="100%" stopColor="#0f172a" stopOpacity={0} />
+                  </linearGradient>
+                  <filter id="lineShadow" x="-10%" y="-10%" width="120%" height="140%">
+                    <feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#0f172a" floodOpacity="0.6" />
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="4 10" className="stroke-white/5" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatChartDate}
+                  className="text-xs"
+                  stroke="currentColor"
+                  opacity={0.4}
+                />
+                <YAxis className="text-xs" stroke="currentColor" opacity={0.35} />
+                <RechartsTooltip
+                  labelFormatter={(label) => formatChartDate(label)}
+                  contentStyle={{
+                    backgroundColor: "rgba(15, 23, 42, 0.9)",
+                    border: "1px solid rgba(148, 163, 184, 0.25)",
+                    borderRadius: "0.9rem",
+                    boxShadow: "0 14px 30px -12px rgba(0, 0, 0, 0.6)",
+                    color: "#e2e8f0",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="url(#lineGlow)"
+                  strokeWidth={4}
+                  filter="url(#lineShadow)"
+                  dot={{ r: 4, fill: "#e2e8f0", strokeWidth: 2, stroke: "rgba(148, 163, 184, 0.6)" }}
+                  activeDot={{ r: 7, fill: "#f8fafc", strokeWidth: 3, stroke: "#93c5fd" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="none"
+                  fill="url(#areaGlow)"
+                  fillOpacity={1}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-40 flex items-center justify-center text-muted-foreground text-sm">
+              <div className="animate-pulse">Chargement...</div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="shadow-sm hover:shadow-md transition-all">
+          <CardHeader>
+            <CardTitle className="text-base font-bold">Progression globale</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Cartes maîtrisées</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-primary">{formatPercent(masteredPct)}</p>
+                <p className="text-xs text-muted-foreground">{overallTotals.mastered} / {overallTotals.total}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Cartes apprises</p>
+              <p className="text-2xl font-bold text-primary">{overallTotals.mastered}</p>
+              <p className="text-xs text-muted-foreground">Total à ce jour</p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -121,51 +199,50 @@ function AdvancedStatsSection() {
         <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 p-2">
-                <TrendingUp className="h-4 w-4 text-accent" />
+              <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
+                <Target className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle className="text-lg font-bold">Révisions par jour (30 jours)</CardTitle>
+              <CardTitle className="text-lg font-bold">Répartition des cartes</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            {reviewsByDay !== undefined ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={reviewsByDay}>
-                  <defs>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatChartDate}
-                    className="text-xs"
-                    stroke="currentColor"
-                    opacity={0.6}
-                  />
-                  <YAxis className="text-xs" stroke="currentColor" opacity={0.6} />
-                  <RechartsTooltip
-                    labelFormatter={(label) => formatChartDate(label)}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "2px solid hsl(var(--border))",
-                      borderRadius: "1rem",
-                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                    activeDot={{ r: 6 }}
-                    fill="url(#colorCount)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          <CardContent className="px-2 py-4">
+            {cardDistribution !== undefined ? (
+              pieData.length > 0 ? (
+                <div className="w-full h-[260px] flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="45%"
+                        labelLine={false}
+                        label={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        verticalAlign="bottom"
+                        height={60}
+                        wrapperStyle={{
+                          paddingTop: "20px",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                        }}
+                        formatter={formatLegend}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
+                  <div className="animate-pulse">Aucune carte</div>
+                </div>
+              )
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
                 <div className="animate-pulse">Chargement...</div>
@@ -174,74 +251,15 @@ function AdvancedStatsSection() {
           </CardContent>
         </Card>
       </div>
-
-      <Card className="shadow-sm hover:shadow-md transition-all">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
-              <Target className="h-4 w-4 text-primary" />
-            </div>
-            <CardTitle className="text-lg font-bold">Répartition des cartes</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="px-2 py-4">
-          {cardDistribution !== undefined ? (
-            pieData.length > 0 ? (
-              <div className="w-full h-[280px] flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="45%"
-                      labelLine={false}
-                      label={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend
-                      verticalAlign="bottom"
-                      height={60}
-                      wrapperStyle={{
-                        paddingTop: "20px",
-                        fontSize: "14px",
-                        fontWeight: "600",
-                      }}
-                      formatter={formatLegend}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                <div className="animate-pulse">Aucune carte</div>
-              </div>
-            )
-          ) : (
-            <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-              <div className="animate-pulse">Chargement...</div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
 
 export default function DashboardPage() {
   const [streak, setStreak] = useState(0);
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [todayStats, setTodayStats] = useState<ReviewStats | null>(null);
-  const [weekStats, setWeekStats] = useState<ReviewStats | null>(null);
-  const [prevWeekStats, setPrevWeekStats] = useState<ReviewStats | null>(null);
   const [overallTotals, setOverallTotals] = useState({ total: 0, mastered: 0 });
   const [loading, setLoading] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -251,34 +269,20 @@ export default function DashboardPage() {
         const now = new Date();
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const weekStart = new Date(now.getTime() - 6 * DAY_MS);
-        weekStart.setHours(0, 0, 0, 0);
-        const prevWeekStart = new Date(weekStart.getTime() - 7 * DAY_MS);
-        const prevWeekEnd = new Date(weekStart.getTime() - 1);
-
         const [
           today,
-          week,
-          prevWeek,
           streakValue,
-          settingsValue,
           allCards,
         ] = await Promise.all([
           getReviewStatsBetween(todayStart.toISOString(), now.toISOString()),
-          getReviewStatsBetween(weekStart.toISOString(), now.toISOString()),
-          getReviewStatsBetween(prevWeekStart.toISOString(), prevWeekEnd.toISOString()),
           getCurrentStreak(),
-          getSettings(),
           listAllCards(),
         ]);
 
         if (!mounted) return;
 
         setTodayStats(today);
-        setWeekStats(week);
-        setPrevWeekStats(prevWeek);
         setStreak(streakValue);
-        setSettings(settingsValue);
 
         const activeCards = allCards.filter((card) => !card.suspended);
         const totalCards = activeCards.length;
@@ -297,42 +301,10 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const dailyTarget = settings?.new_cards_per_day ?? 20;
   const studiedToday = todayStats?.totalReviews ?? 0;
   const timeToday = todayStats?.totalMinutes ?? 0;
-  const objectiveReached = studiedToday >= dailyTarget;
-
-  const weekRetention = weekStats?.retentionRate ?? 0;
-  const prevWeekRetention = prevWeekStats?.retentionRate ?? 0;
-  const retentionDelta = weekRetention - prevWeekRetention;
-
-  const weekMinutes = weekStats?.totalMinutes ?? 0;
-  const prevWeekMinutes = prevWeekStats?.totalMinutes ?? 0;
-  const weekHours = weekMinutes / 60;
-  const prevWeekHours = prevWeekMinutes / 60;
-  const efficiencyScore = weekHours > 0 ? weekRetention / weekHours : 0;
-  const prevEfficiencyScore = prevWeekHours > 0 ? prevWeekRetention / prevWeekHours : 0;
-  const efficiencyDelta = efficiencyScore - prevEfficiencyScore;
 
   const masteredPct = overallTotals.total > 0 ? overallTotals.mastered / overallTotals.total : 0;
-
-  const motivationLine = getMotivationLine(streak, studiedToday, retentionDelta);
-
-  const insightLine = useMemo(() => {
-    if (studiedToday === 0) {
-      return "Vous avez une opportunité aujourd'hui pour relancer votre rythme.";
-    }
-    if (retentionDelta > 0.05) {
-      return "Votre rétention augmente cette semaine — continuez comme ça.";
-    }
-    if (efficiencyDelta < -0.05) {
-      return "Votre efficacité baisse légèrement : des sessions plus courtes peuvent aider.";
-    }
-    if (streak >= 5) {
-      return "Votre constance s'installe, et ça fait la différence.";
-    }
-    return "Votre progression est régulière — gardez ce tempo.";
-  }, [studiedToday, retentionDelta, efficiencyDelta, streak]);
 
   return (
     <>
@@ -342,11 +314,8 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight">Votre progression</h1>
-              <p className="text-muted-foreground">Un aperçu rapide pour garder la motivation.</p>
+              <p className="text-muted-foreground">Un aperçu rapide de votre activité.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setShowAdvanced((prev) => !prev)}>
-              {showAdvanced ? "Masquer les stats avancées" : "Stats avancées"}
-            </Button>
           </div>
 
           <Card className="shadow-sm">
@@ -359,25 +328,16 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cartes revues</p>
                   <p className="text-3xl font-extrabold text-primary">{loading ? "…" : studiedToday}</p>
                 </div>
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Temps étudié</p>
                   <p className="text-3xl font-extrabold text-primary">{loading ? "…" : formatMinutes(timeToday)}</p>
                 </div>
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Objectif du jour</p>
-                  <p className="text-2xl font-semibold text-foreground">
-                    {loading ? "…" : objectiveReached ? "Objectif atteint" : "Objectif en cours"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {loading ? "" : `${studiedToday}/${dailyTarget} cartes`}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Série</p>
                     <Flame className="h-4 w-4 text-orange-500" />
@@ -386,107 +346,13 @@ export default function DashboardPage() {
                   <p className="text-xs text-muted-foreground">jours consécutifs</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">{motivationLine}</p>
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-bold">Progression globale</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Cartes maîtrisées</p>
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-bold text-primary">{formatPercent(masteredPct)}</p>
-                    <p className="text-xs text-muted-foreground">{overallTotals.mastered} / {overallTotals.total}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Cartes apprises</p>
-                  <p className="text-2xl font-bold text-primary">{overallTotals.mastered}</p>
-                  <p className="text-xs text-muted-foreground">Total à ce jour</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-bold">Rétention (7 jours)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-extrabold text-primary">{formatPercent(weekRetention)}</p>
-                  <p className={`text-xs font-semibold ${retentionDelta >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
-                    {formatDelta(retentionDelta)}
-                  </p>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">Comparé à la semaine précédente</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Gauge className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-base font-bold">Efficacité d'apprentissage</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-extrabold text-primary">
-                    {weekHours > 0 ? (efficiencyScore * 100).toFixed(1) : "0.0"}
-                  </p>
-                  <p className={`text-xs font-semibold ${efficiencyDelta >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
-                    {efficiencyDelta === 0 ? "= 0" : (efficiencyDelta > 0 ? "+" : "") + (efficiencyDelta * 100).toFixed(1)}
-                  </p>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">Plus c'est élevé, mieux vous retenez avec moins de temps.</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Cette semaine en un coup d'œil</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cartes revues</p>
-                <p className="text-2xl font-bold text-primary">{loading ? "…" : weekStats?.totalReviews ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Semaine en cours</p>
-              </div>
-              <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Temps étudié</p>
-                <p className="text-2xl font-bold text-primary">{loading ? "…" : formatMinutes(weekStats?.totalMinutes ?? 0)}</p>
-                <p className="text-xs text-muted-foreground">Semaine en cours</p>
-              </div>
-              <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Série actuelle</p>
-                <p className="text-2xl font-bold text-primary">{loading ? "…" : streak} jours</p>
-                <p className="text-xs text-muted-foreground">Consécutifs</p>
-              </div>
-              <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rétention (7 jours)</p>
-                <p className="text-2xl font-bold text-primary">{formatPercent(weekRetention)}</p>
-                <p className="text-xs text-muted-foreground">Taux moyen</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">Moment motivation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-                {insightLine}
-              </div>
-            </CardContent>
-          </Card>
-
-          {showAdvanced && <AdvancedStatsSection />}
+          <AdvancedStatsSection
+            masteredPct={masteredPct}
+            overallTotals={overallTotals}
+          />
         </div>
       </div>
     </>

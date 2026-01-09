@@ -58,7 +58,7 @@ export function GeneratedCardRow({
             type="checkbox"
             checked={selected}
             onChange={() => onToggle(index)}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-white/20"
           />
           <span className="text-sm font-medium">
             Card {index + 1}
@@ -117,4 +117,3 @@ export function GeneratedCardRow({
     </div>
   );
 }
-
