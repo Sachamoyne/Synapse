@@ -20,9 +20,10 @@ interface DeckOptionsProps {
   onOpenChange: (open: boolean) => void;
   deckId: string;
   deckName: string;
+  onSaved?: () => void;
 }
 
-export function DeckOptions({ open, onOpenChange, deckId, deckName }: DeckOptionsProps) {
+export function DeckOptions({ open, onOpenChange, deckId, deckName, onSaved }: DeckOptionsProps) {
   const [deckSettings, setDeckSettings] = useState<DeckSettings | null>(null);
   const [globalSettings, setGlobalSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,10 @@ export function DeckOptions({ open, onOpenChange, deckId, deckName }: DeckOption
     if (!deckSettings) return;
     setSaving(true);
     try {
-      await updateDeckSettings(deckId, deckSettings);
+      console.log("[DeckOptions] Saving deck settings:", deckSettings);
+      const saved = await updateDeckSettings(deckId, deckSettings);
+      console.log("[DeckOptions] Deck settings saved:", saved);
+      onSaved?.();
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving deck settings:", error);
@@ -96,8 +100,6 @@ export function DeckOptions({ open, onOpenChange, deckId, deckName }: DeckOption
   const hasOverrides = deckSettings && (
     deckSettings.newCardsPerDay !== null ||
     deckSettings.maxReviewsPerDay !== null ||
-    deckSettings.learningMode !== null ||
-    deckSettings.againDelayMinutes !== null ||
     deckSettings.reviewOrder !== null
   );
 

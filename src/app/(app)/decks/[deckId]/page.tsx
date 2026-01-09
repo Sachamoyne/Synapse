@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Trash2 } from "lucide-react";
-import { getDeckCardCounts, deleteDeck } from "@/store/decks";
+import { getAnkiCountsForDecks, deleteDeck } from "@/store/decks";
 
 export default function DeckOverviewPage() {
   const params = useParams();
@@ -16,13 +16,16 @@ export default function DeckOverviewPage() {
     learning: number;
     review: number;
   }>({ new: 0, learning: 0, review: 0 });
+  const [totalCards, setTotalCards] = useState(0);
 
   useEffect(() => {
     async function loadCounts() {
       try {
         const normalizedDeckId = String(deckId);
-        const counts = await getDeckCardCounts(normalizedDeckId);
+        const { due, total } = await getAnkiCountsForDecks([normalizedDeckId]);
+        const counts = due[normalizedDeckId] || { new: 0, learning: 0, review: 0 };
         setCardCounts(counts);
+        setTotalCards(total[normalizedDeckId] || 0);
       } catch (error) {
         console.error("Error loading card counts:", error);
       } finally {
@@ -31,6 +34,29 @@ export default function DeckOverviewPage() {
     }
 
     loadCounts();
+  }, [deckId]);
+
+  useEffect(() => {
+    const handleCountsUpdated = () => {
+      setLoading(true);
+      const normalizedDeckId = String(deckId);
+      getAnkiCountsForDecks([normalizedDeckId])
+        .then(({ due, total }) => {
+          const counts = due[normalizedDeckId] || { new: 0, learning: 0, review: 0 };
+          setCardCounts(counts);
+          setTotalCards(total[normalizedDeckId] || 0);
+        })
+        .catch((error) => {
+          console.error("Error loading card counts:", error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+    window.addEventListener("synapse-counts-updated", handleCountsUpdated);
+    return () => {
+      window.removeEventListener("synapse-counts-updated", handleCountsUpdated);
+    };
   }, [deckId]);
 
   const handleDeleteDeck = async () => {
@@ -49,8 +75,7 @@ export default function DeckOverviewPage() {
     router.push(`/study/${String(deckId)}`);
   };
 
-  const totalCards = cardCounts.new + cardCounts.learning + cardCounts.review;
-  const hasDueCards = totalCards > 0;
+  const hasDueCards = (cardCounts.new + cardCounts.learning + cardCounts.review) > 0;
 
   if (loading) {
     return (

@@ -27,7 +27,6 @@ export default function DeckStudyPage() {
           deckId,
           newCardsPerDay: effectiveSettings.newCardsPerDay,
           maxReviewsPerDay: effectiveSettings.maxReviewsPerDay,
-          learningMode: effectiveSettings.learningMode,
         });
 
         // ✅ Calculate session limit based on EFFECTIVE daily limits

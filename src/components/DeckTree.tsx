@@ -13,64 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { createDeck, createCard, getDueCount, getDeckCardCounts } from "@/store/decks";
+import { createDeck, createCard } from "@/store/decks";
 import type { Deck } from "@/lib/db";
 import { ChevronRight, ChevronDown, BookOpen, Plus } from "lucide-react";
 import { DeckSettingsMenu } from "@/components/DeckSettingsMenu";
 import { createClient } from "@/lib/supabase/client";
 
-// Helper: Get all descendant deck IDs (recursive)
-function getAllDescendants(deckId: string, allDecks: Deck[]): string[] {
-  const children = allDecks.filter((d) => d.parent_deck_id === deckId);
-  const descendants: string[] = [];
-
-  for (const child of children) {
-    descendants.push(child.id);
-    descendants.push(...getAllDescendants(child.id, allDecks));
-  }
-
-  return descendants;
-}
-
-// Helper: Get recursive card count (deck + all descendants)
-function getRecursiveCardCount(
-  deckId: string,
-  allDecks: Deck[],
-  cardCounts: Record<string, number>
-): number {
-  const descendants = getAllDescendants(deckId, allDecks);
-  const ownCount = cardCounts[deckId] || 0;
-  const descendantsCount = descendants.reduce((sum, id) => sum + (cardCounts[id] || 0), 0);
-  return ownCount + descendantsCount;
-}
-
-// Helper: Get recursive learning counts (deck + all descendants)
-function getRecursiveLearningCounts(
-  deckId: string,
-  allDecks: Deck[],
-  learningCounts: Record<string, { new: number; learning: number; review: number }>
-): { new: number; learning: number; review: number } {
-  const descendants = getAllDescendants(deckId, allDecks);
-  const ownCounts = learningCounts[deckId] || { new: 0, learning: 0, review: 0 };
-
-  const totalCounts = { ...ownCounts };
-  for (const id of descendants) {
-    const counts = learningCounts[id];
-    if (counts) {
-      totalCounts.new += counts.new;
-      totalCounts.learning += counts.learning;
-      totalCounts.review += counts.review;
-    }
-  }
-
-  return totalCounts;
-}
-
 interface DeckTreeProps {
   deck: Deck;
   allDecks: Deck[];
   cardCounts: Record<string, number>;
-  dueCounts: Record<string, number>;
   learningCounts: Record<string, { new: number; learning: number; review: number }>;
   level: number;
   expandedDeckIds: Set<string>;
@@ -83,7 +35,6 @@ export function DeckTree({
   deck,
   allDecks,
   cardCounts,
-  dueCounts,
   learningCounts,
   level,
   expandedDeckIds,
@@ -198,7 +149,7 @@ export function DeckTree({
           {/* Counts - Fixed width grid for strict alignment */}
           {(() => {
             const counts = learningCounts[deck.id] || { new: 0, learning: 0, review: 0 };
-            const totalCards = cardCounts[deck.id] || 0;
+            const totalCards = cardCounts[deck.id] || 0;            
 
             if (learningCounts[deck.id] !== undefined) {
               return (
@@ -273,7 +224,6 @@ export function DeckTree({
               deck={child}
               allDecks={allDecks}
               cardCounts={cardCounts}
-              dueCounts={dueCounts}
               learningCounts={learningCounts}
               level={level + 1}
               expandedDeckIds={expandedDeckIds}

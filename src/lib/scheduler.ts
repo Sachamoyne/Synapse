@@ -15,18 +15,9 @@
 import type { Card, Settings } from "./supabase-db";
 
 export interface SchedulerSettings {
-  learning_steps: string;
-  relearning_steps: string;
-  graduating_interval_days: number;
-  easy_interval_days: number;
   starting_ease: number;
   easy_bonus: number;
   hard_interval: number;
-  interval_modifier: number;
-  new_interval_multiplier: number;
-  minimum_interval_days: number;
-  maximum_interval_days: number;
-  again_delay_minutes: number;
 }
 
 export interface SchedulingResult {
@@ -45,6 +36,14 @@ export interface IntervalPreview {
   good: string;
   easy: string;
 }
+
+const DEFAULT_LEARNING_STEPS_MINUTES = [1];
+const DEFAULT_GRADUATING_INTERVAL_DAYS = 1;
+const DEFAULT_SETTINGS: SchedulerSettings = {
+  starting_ease: 2.5,
+  easy_bonus: 1.3,
+  hard_interval: 1.2,
+};
 
 // ============================================================================
 // STEP PARSING
@@ -174,21 +173,6 @@ function clampEase(ease: number, min: number = 1.3, max: number = 3.0): number {
   return Math.max(min, Math.min(max, ease));
 }
 
-/**
- * Ensure new interval is at least old interval + 1 day (anti-stagnation)
- */
-function ensureMinimumProgress(
-  newInterval: number,
-  oldInterval: number,
-  minimumInterval: number
-): number {
-  // For review cards, ensure progress of at least 1 day
-  if (oldInterval > 0 && newInterval <= oldInterval) {
-    return oldInterval + 1;
-  }
-  return Math.max(newInterval, minimumInterval);
-}
-
 // ============================================================================
 // SCHEDULING LOGIC
 // ============================================================================
@@ -201,52 +185,17 @@ function scheduleNew(
   settings: SchedulerSettings,
   now: Date = new Date()
 ): SchedulingResult {
-  const steps = parseSteps(settings.learning_steps);
-
-  if (steps.length === 0) {
-    // No learning steps: graduate immediately
-    const intervalDays =
-      rating === "easy"
-        ? settings.easy_interval_days
-        : settings.graduating_interval_days;
-
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(intervalDays, now),
-      interval_days: intervalDays,
-      ease: settings.starting_ease,
-      learning_step_index: 0,
-      reps: 1,
-      lapses: 0,
-    };
-  }
-
-  // Easy: skip learning, graduate immediately
-  if (rating === "easy") {
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(settings.easy_interval_days, now),
-      interval_days: settings.easy_interval_days,
-      ease: settings.starting_ease,
-      learning_step_index: 0,
-      reps: 1,
-      lapses: 0,
-    };
-  }
+  const steps = DEFAULT_LEARNING_STEPS_MINUTES;
+  const normalizedSettings = { ...DEFAULT_SETTINGS, ...settings };
 
   // Again: go to first step
-  // For intraday learning, set due_at to now to keep in current session (Anki behavior)
   if (rating === "again") {
     const stepMinutes = steps[0];
-    const dueAt = isInterday(stepMinutes)
-      ? calculateDueDate(stepMinutes, now)  // Interday: schedule for tomorrow
-      : now;  // Intraday: immediate (stay in current session)
-
     return {
       state: "learning",
-      due_at: dueAt,
+      due_at: calculateDueDate(stepMinutes, now),
       interval_days: 0,
-      ease: settings.starting_ease,
+      ease: normalizedSettings.starting_ease,
       learning_step_index: 0,
       reps: 0,
       lapses: 0,
@@ -254,24 +203,24 @@ function scheduleNew(
   }
 
   // Good: go to first step (new cards start at step 0)
-  if (rating === "good") {
+  if (rating === "good" || rating === "hard") {
     return {
       state: "learning",
       due_at: calculateDueDate(steps[0], now),
       interval_days: 0,
-      ease: settings.starting_ease,
+      ease: normalizedSettings.starting_ease,
       learning_step_index: 0,
       reps: 1,
       lapses: 0,
     };
   }
 
-  // Hard: similar to Good for new cards (Anki behavior)
+  // Easy: graduate immediately with 1 day
   return {
-    state: "learning",
-    due_at: calculateDueDate(steps[0], now),
-    interval_days: 0,
-    ease: settings.starting_ease,
+    state: "review",
+    due_at: calculateDueDateDays(DEFAULT_GRADUATING_INTERVAL_DAYS, now),
+    interval_days: DEFAULT_GRADUATING_INTERVAL_DAYS,
+    ease: normalizedSettings.starting_ease,
     learning_step_index: 0,
     reps: 1,
     lapses: 0,
@@ -287,46 +236,15 @@ function scheduleLearning(
   settings: SchedulerSettings,
   now: Date = new Date()
 ): SchedulingResult {
-  const steps = parseSteps(settings.learning_steps);
+  const steps = DEFAULT_LEARNING_STEPS_MINUTES;
   const currentStepIndex = card.learning_step_index || 0;
 
-  if (steps.length === 0) {
-    // No steps: graduate
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(settings.graduating_interval_days, now),
-      interval_days: settings.graduating_interval_days,
-      ease: card.ease,
-      learning_step_index: 0,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
-  // Easy: graduate immediately
-  if (rating === "easy") {
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(settings.easy_interval_days, now),
-      interval_days: settings.easy_interval_days,
-      ease: card.ease,
-      learning_step_index: 0,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
   // Again: back to first step
-  // For intraday learning cards, set due_at to now to keep in current session (Anki behavior)
   if (rating === "again") {
     const stepMinutes = steps[0];
-    const dueAt = isInterday(stepMinutes)
-      ? calculateDueDate(stepMinutes, now)  // Interday: schedule for tomorrow
-      : now;  // Intraday: immediate (stay in current session)
-
     return {
       state: "learning",
-      due_at: dueAt,
+      due_at: calculateDueDate(stepMinutes, now),
       interval_days: 0,
       ease: card.ease,
       learning_step_index: 0,
@@ -336,15 +254,15 @@ function scheduleLearning(
   }
 
   // Good: advance to next step or graduate
-  if (rating === "good") {
+  if (rating === "good" || rating === "hard") {
     const nextStepIndex = currentStepIndex + 1;
 
     if (nextStepIndex >= steps.length) {
       // Graduate
       return {
         state: "review",
-        due_at: calculateDueDateDays(settings.graduating_interval_days, now),
-        interval_days: settings.graduating_interval_days,
+        due_at: calculateDueDateDays(DEFAULT_GRADUATING_INTERVAL_DAYS, now),
+        interval_days: DEFAULT_GRADUATING_INTERVAL_DAYS,
         ease: card.ease,
         learning_step_index: 0,
         reps: card.reps + 1,
@@ -364,50 +282,13 @@ function scheduleLearning(
     };
   }
 
-  // Hard: special logic
-  if (rating === "hard") {
-    if (currentStepIndex === 0) {
-      // First step: average of Again step and Good (next) step
-      let delayMinutes: number;
-
-      if (steps.length === 1) {
-        // Only one step: 1.5x the step (capped at +1 day)
-        delayMinutes = Math.min(steps[0] * 1.5, steps[0] + 1440);
-      } else {
-        // Average of current and next
-        delayMinutes = (steps[0] + steps[1]) / 2;
-      }
-
-      return {
-        state: "learning",
-        due_at: calculateDueDate(delayMinutes, now),
-        interval_days: 0,
-        ease: card.ease,
-        learning_step_index: 0,
-        reps: card.reps + 1,
-        lapses: card.lapses,
-      };
-    } else {
-      // Other steps: repeat current step
-      return {
-        state: "learning",
-        due_at: calculateDueDate(steps[currentStepIndex], now),
-        interval_days: 0,
-        ease: card.ease,
-        learning_step_index: currentStepIndex,
-        reps: card.reps + 1,
-        lapses: card.lapses,
-      };
-    }
-  }
-
-  // Fallback
+  // Easy: graduate immediately with 1 day
   return {
-    state: "learning",
-    due_at: calculateDueDate(steps[currentStepIndex], now),
-    interval_days: 0,
+    state: "review",
+    due_at: calculateDueDateDays(DEFAULT_GRADUATING_INTERVAL_DAYS, now),
+    interval_days: DEFAULT_GRADUATING_INTERVAL_DAYS,
     ease: card.ease,
-    learning_step_index: currentStepIndex,
+    learning_step_index: 0,
     reps: card.reps + 1,
     lapses: card.lapses,
   };
@@ -422,53 +303,31 @@ function scheduleReview(
   settings: SchedulerSettings,
   now: Date = new Date()
 ): SchedulingResult {
-  let ease = card.ease;
-  let interval = card.interval_days;
+  const normalizedSettings = { ...DEFAULT_SETTINGS, ...settings };
+  let ease = card.ease || normalizedSettings.starting_ease;
+  let interval = card.interval_days || DEFAULT_GRADUATING_INTERVAL_DAYS;
   let lapses = card.lapses;
-  let state: "review" | "relearning" = "review";
 
-  // Again: lapse -> relearning
+  // Again: reset interval and decrease ease
   if (rating === "again") {
     ease = clampEase(ease - 0.2);
     lapses += 1;
-
-    // Apply new interval multiplier
-    interval = Math.max(
-      1,
-      Math.round(interval * settings.new_interval_multiplier)
-    );
-
-    // Enter relearning
-    const relearnSteps = parseSteps(settings.relearning_steps);
-    if (relearnSteps.length > 0) {
-      return {
-        state: "relearning",
-        due_at: calculateDueDate(relearnSteps[0], now),
-        interval_days: interval,
-        ease: ease,
-        learning_step_index: 0,
-        reps: card.reps + 1,
-        lapses: lapses,
-      };
-    } else {
-      // No relearning steps: min interval
-      interval = settings.minimum_interval_days;
-      return {
-        state: "review",
-        due_at: calculateDueDateDays(interval, now),
-        interval_days: interval,
-        ease: ease,
-        learning_step_index: 0,
-        reps: card.reps + 1,
-        lapses: lapses,
-      };
-    }
+    interval = DEFAULT_GRADUATING_INTERVAL_DAYS;
+    return {
+      state: "review",
+      due_at: calculateDueDateDays(interval, now),
+      interval_days: interval,
+      ease: ease,
+      learning_step_index: 0,
+      reps: card.reps + 1,
+      lapses: lapses,
+    };
   }
 
   // Hard
   if (rating === "hard") {
     ease = clampEase(ease - 0.15);
-    interval = interval * settings.hard_interval;
+    interval = interval * normalizedSettings.hard_interval;
   }
 
   // Good
@@ -479,27 +338,10 @@ function scheduleReview(
   // Easy
   if (rating === "easy") {
     ease = clampEase(ease + 0.15);
-    interval = interval * ease * settings.easy_bonus;
+    interval = interval * ease * normalizedSettings.easy_bonus;
   }
 
-  // Apply interval modifier
-  if (rating !== "again") {
-    interval = interval * settings.interval_modifier;
-  }
-
-  // Apply bounds
-  interval = Math.max(settings.minimum_interval_days, interval);
-  interval = Math.min(settings.maximum_interval_days, interval);
-
-  // Ensure minimum progress (anti-stagnation)
-  interval = ensureMinimumProgress(
-    interval,
-    card.interval_days,
-    settings.minimum_interval_days
-  );
-
-  // Round interval
-  interval = Math.round(interval);
+  interval = Math.max(DEFAULT_GRADUATING_INTERVAL_DAYS, Math.round(interval));
 
   return {
     state: "review",
@@ -521,106 +363,7 @@ function scheduleRelearning(
   settings: SchedulerSettings,
   now: Date = new Date()
 ): SchedulingResult {
-  const steps = parseSteps(settings.relearning_steps);
-  const currentStepIndex = card.learning_step_index || 0;
-
-  if (steps.length === 0) {
-    // No relearning steps: back to review with min interval
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(settings.minimum_interval_days, now),
-      interval_days: settings.minimum_interval_days,
-      ease: card.ease,
-      learning_step_index: 0,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
-  // Easy: back to review immediately with min interval
-  if (rating === "easy") {
-    return {
-      state: "review",
-      due_at: calculateDueDateDays(settings.minimum_interval_days, now),
-      interval_days: settings.minimum_interval_days,
-      ease: card.ease,
-      learning_step_index: 0,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
-  // Again: back to first relearn step
-  // For intraday relearning cards, set due_at to now to keep in current session (Anki behavior)
-  if (rating === "again") {
-    const stepMinutes = steps[0];
-    const dueAt = isInterday(stepMinutes)
-      ? calculateDueDate(stepMinutes, now)  // Interday: schedule for tomorrow
-      : now;  // Intraday: immediate (stay in current session)
-
-    return {
-      state: "relearning",
-      due_at: dueAt,
-      interval_days: card.interval_days,
-      ease: card.ease,
-      learning_step_index: 0,
-      reps: card.reps,
-      lapses: card.lapses,
-    };
-  }
-
-  // Good: advance or graduate
-  if (rating === "good") {
-    const nextStepIndex = currentStepIndex + 1;
-
-    if (nextStepIndex >= steps.length) {
-      // Graduate back to review
-      return {
-        state: "review",
-        due_at: calculateDueDateDays(settings.minimum_interval_days, now),
-        interval_days: settings.minimum_interval_days,
-        ease: card.ease,
-        learning_step_index: 0,
-        reps: card.reps + 1,
-        lapses: card.lapses,
-      };
-    }
-
-    // Next step
-    return {
-      state: "relearning",
-      due_at: calculateDueDate(steps[nextStepIndex], now),
-      interval_days: card.interval_days,
-      ease: card.ease,
-      learning_step_index: nextStepIndex,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
-  // Hard: repeat step (similar to learning)
-  if (rating === "hard") {
-    return {
-      state: "relearning",
-      due_at: calculateDueDate(steps[currentStepIndex], now),
-      interval_days: card.interval_days,
-      ease: card.ease,
-      learning_step_index: currentStepIndex,
-      reps: card.reps + 1,
-      lapses: card.lapses,
-    };
-  }
-
-  // Fallback
-  return {
-    state: "relearning",
-    due_at: calculateDueDate(steps[currentStepIndex], now),
-    interval_days: card.interval_days,
-    ease: card.ease,
-    learning_step_index: currentStepIndex,
-    reps: card.reps + 1,
-    lapses: card.lapses,
-  };
+  return scheduleLearning(card, rating, settings, now);
 }
 
 // ============================================================================

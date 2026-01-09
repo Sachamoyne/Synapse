@@ -45,9 +45,7 @@ function FieldWrapper({
           onChange={onToggleInherit}
           className="w-4 h-4"
         />
-        <span className="text-sm font-medium">
-          {isInherited ? "Utiliser le réglage global" : "Personnaliser"}
-        </span>
+        <span className="text-sm font-medium">Personnaliser</span>
       </div>
       <div className={isInherited ? "opacity-50 pointer-events-none" : ""}>
         {children}
@@ -83,12 +81,9 @@ export function SettingsForm({ settings, globalSettings, onChange, mode }: Setti
 
   // Get the display value for a field - ALWAYS returns a defined value
   const getDisplayValue = (field: keyof Omit<DeckSettings, "id" | "deckId">) => {
-    // Default values for each field to prevent undefined
     const defaults = {
       newCardsPerDay: 20,
       maxReviewsPerDay: 9999,
-      learningMode: "normal" as const,
-      againDelayMinutes: 10,
       reviewOrder: "mixed" as const,
     };
 
@@ -180,136 +175,6 @@ export function SettingsForm({ settings, globalSettings, onChange, mode }: Setti
         </CardContent>
       </Card>
 
-      {/* Apprentissage */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Apprentissage</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <FieldWrapper
-            label="Mode d'apprentissage"
-            isInherited={isInherited("learningMode")}
-            onToggleInherit={() => toggleInherit("learningMode", "normal")}
-            mode={mode}
-          >
-            <Label>Mode d&apos;apprentissage</Label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`learningMode-${mode}`}
-                  value="fast"
-                  checked={getDisplayValue("learningMode") === "fast"}
-                  onChange={(e) => {
-                    if (mode === "global") {
-                      onChange({ ...settings, learningMode: "fast" } as Settings);
-                    } else {
-                      onChange({ ...settings, learningMode: "fast" } as DeckSettings);
-                    }
-                  }}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <span className="font-medium">Rapide</span>
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (10 min → 1 jour)
-                  </span>
-                </div>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`learningMode-${mode}`}
-                  value="normal"
-                  checked={getDisplayValue("learningMode") === "normal"}
-                  onChange={(e) => {
-                    if (mode === "global") {
-                      onChange({ ...settings, learningMode: "normal" } as Settings);
-                    } else {
-                      onChange({ ...settings, learningMode: "normal" } as DeckSettings);
-                    }
-                  }}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <span className="font-medium">Normal</span>
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (10 min → 1 jour → 3 jours)
-                  </span>
-                </div>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`learningMode-${mode}`}
-                  value="deep"
-                  checked={getDisplayValue("learningMode") === "deep"}
-                  onChange={(e) => {
-                    if (mode === "global") {
-                      onChange({ ...settings, learningMode: "deep" } as Settings);
-                    } else {
-                      onChange({ ...settings, learningMode: "deep" } as DeckSettings);
-                    }
-                  }}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <span className="font-medium">Approfondi</span>
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (10 min → 1 jour → 3 jours → 7 jours)
-                  </span>
-                </div>
-              </label>
-            </div>
-          </FieldWrapper>
-        </CardContent>
-      </Card>
-
-      {/* Erreurs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Erreurs</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={true} readOnly className="w-4 h-4" />
-            <span>Revoir les cartes échouées dans la session</span>
-          </label>
-          <FieldWrapper
-            label="Délai avant réapparition"
-            isInherited={isInherited("againDelayMinutes")}
-            onToggleInherit={() => toggleInherit("againDelayMinutes", 10)}
-            mode={mode}
-          >
-            <p className="text-sm text-muted-foreground">
-              Les cartes marquées Again réapparaissent après{" "}
-              {getDisplayValue("againDelayMinutes") ?? 10} minutes
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="againDelayMinutes">
-                Délai avant réapparition (minutes)
-              </Label>
-              <Input
-                id="againDelayMinutes"
-                type="number"
-                min="1"
-                max="1440"
-                value={String(getDisplayValue("againDelayMinutes") ?? 10)}
-                onChange={(e) => {
-                  const newValue = parseInt(e.target.value) || 10;
-                  if (mode === "global") {
-                    onChange({ ...settings, againDelayMinutes: newValue } as Settings);
-                  } else {
-                    onChange({ ...settings, againDelayMinutes: newValue } as DeckSettings);
-                  }
-                }}
-                className="w-32"
-              />
-            </div>
-          </FieldWrapper>
-        </CardContent>
-      </Card>
-
       {/* Étude */}
       <Card>
         <CardHeader>
@@ -322,7 +187,7 @@ export function SettingsForm({ settings, globalSettings, onChange, mode }: Setti
             onToggleInherit={() => toggleInherit("reviewOrder", "mixed")}
             mode={mode}
           >
-            <Label htmlFor="reviewOrder">Ordre des révisions</Label>
+            <Label htmlFor="reviewOrder">Ordre d&apos;affichage</Label>
             <select
               id="reviewOrder"
               value={String(getDisplayValue("reviewOrder") ?? "mixed")}
@@ -336,9 +201,9 @@ export function SettingsForm({ settings, globalSettings, onChange, mode }: Setti
               }}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <option value="mixed">Mélangé</option>
-              <option value="oldFirst">Anciennes d&apos;abord</option>
               <option value="newFirst">Nouvelles d&apos;abord</option>
+              <option value="oldFirst">Révisions d&apos;abord</option>
+              <option value="mixed">Mélangé</option>
             </select>
           </FieldWrapper>
         </CardContent>

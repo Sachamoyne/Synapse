@@ -15,8 +15,6 @@ import { LogOut } from "lucide-react";
 const DEFAULT_SETTINGS: Partial<Settings> = {
   newCardsPerDay: 20,
   maxReviewsPerDay: 9999,
-  learningMode: "normal",
-  againDelayMinutes: 10,
   reviewOrder: "mixed",
 };
 
@@ -144,124 +142,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Apprentissage */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Apprentissage</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <Label>Mode d&apos;apprentissage</Label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="learningMode"
-                      value="fast"
-                      checked={(settings.learningMode ?? "normal") === "fast"}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          learningMode: e.target.value as "fast",
-                        })
-                      }
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <span className="font-medium">Rapide</span>
-                      <span className="text-sm text-muted-foreground ml-2">
-                        (10 min → 1 jour)
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="learningMode"
-                      value="normal"
-                      checked={(settings.learningMode ?? "normal") === "normal"}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          learningMode: e.target.value as "normal",
-                        })
-                      }
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <span className="font-medium">Normal</span>
-                      <span className="text-sm text-muted-foreground ml-2">
-                        (10 min → 1 jour → 3 jours)
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="learningMode"
-                      value="deep"
-                      checked={(settings.learningMode ?? "normal") === "deep"}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          learningMode: e.target.value as "deep",
-                        })
-                      }
-                      className="w-4 h-4"
-                    />
-                    <div>
-                      <span className="font-medium">Approfondi</span>
-                      <span className="text-sm text-muted-foreground ml-2">
-                        (10 min → 1 jour → 3 jours → 7 jours)
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Erreurs */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Erreurs</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={true}
-                  readOnly
-                  className="w-4 h-4"
-                />
-                <span>Revoir les cartes échouées dans la session</span>
-              </label>
-              <p className="text-sm text-muted-foreground ml-6">
-                Les cartes marquées Again réapparaissent après{" "}
-                {settings.againDelayMinutes ?? 10} minutes
-              </p>
-              <div className="space-y-2 ml-6">
-                <Label htmlFor="againDelayMinutes">
-                  Délai avant réapparition (minutes)
-                </Label>
-                <Input
-                  id="againDelayMinutes"
-                  type="number"
-                  min="1"
-                  max="1440"
-                  value={settings.againDelayMinutes ?? 10}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      againDelayMinutes: parseInt(e.target.value) || 10,
-                    })
-                  }
-                  className="w-32"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Étude */}
           <Card>
             <CardHeader>
@@ -269,7 +149,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reviewOrder">Ordre des révisions</Label>
+                <Label htmlFor="reviewOrder">Ordre d&apos;affichage</Label>
                 <select
                   id="reviewOrder"
                   value={settings.reviewOrder ?? "mixed"}
@@ -284,9 +164,9 @@ export default function SettingsPage() {
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="mixed">Mélangé</option>
-                  <option value="oldFirst">Anciennes d&apos;abord</option>
                   <option value="newFirst">Nouvelles d&apos;abord</option>
+                  <option value="oldFirst">Révisions d&apos;abord</option>
+                  <option value="mixed">Mélangé</option>
                 </select>
               </div>
             </CardContent>

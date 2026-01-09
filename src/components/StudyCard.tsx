@@ -59,7 +59,11 @@ export function StudyCard({
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [ratingFlash, setRatingFlash] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [waitingUntil, setWaitingUntil] = useState<Date | null>(null);
   const queuedIds = useRef<Set<string>>(new Set(initialCards.map((c) => c.id)));
+  const pendingCards = useRef<Map<string, CardType>>(new Map());
+  const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSubmitting = useRef(false);
 
   // Derive currentCard safely
@@ -112,15 +116,23 @@ export function StudyCard({
 
       try {
         // Persist review FIRST - wait for completion
-        await reviewCard(cardId, rating);
+        const updatedCard = await reviewCard(cardId, rating);
         console.log("✅ reviewCard completed successfully");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("synapse-counts-updated"));
+        }
 
         // THEN update UI
         const withoutCurrent = queue.filter((_, i) => i !== currentIndex);
         let newQueue: CardType[] = [];
         let newIndex = currentIndex;
+        const updatedDueAt = new Date(updatedCard.due_at).getTime();
+        const nowMs = Date.now();
+        const isLearningState =
+          updatedCard.state === "learning" || updatedCard.state === "relearning";
+        const shouldRequeueSoon = updatedDueAt <= nowMs + 60_000;
 
-        if (rating === "again") {
+        if (isLearningState && shouldRequeueSoon) {
           const REINSERT_AFTER_VAL = Math.min(3, withoutCurrent.length);
           const insertAt = Math.min(
             withoutCurrent.length,
@@ -129,7 +141,7 @@ export function StudyCard({
 
           newQueue = [
             ...withoutCurrent.slice(0, insertAt),
-            currentCard,
+            updatedCard as CardType,
             ...withoutCurrent.slice(insertAt),
           ];
 
@@ -140,6 +152,19 @@ export function StudyCard({
             newIndex = 0;
           } else {
             newIndex = Math.min(currentIndex, withoutCurrent.length - 1);
+          }
+        } else if (isLearningState && !shouldRequeueSoon) {
+          pendingCards.current.set(updatedCard.id, updatedCard as CardType);
+          setPendingCount(pendingCards.current.size);
+          newQueue = withoutCurrent;
+          queuedIds.current.delete(updatedCard.id);
+
+          if (withoutCurrent.length === 0) {
+            newIndex = 0;
+          } else if (currentIndex >= withoutCurrent.length) {
+            newIndex = withoutCurrent.length - 1;
+          } else {
+            newIndex = currentIndex;
           }
         } else {
           newQueue = withoutCurrent;
@@ -164,8 +189,12 @@ export function StudyCard({
 
         // Advance to next card immediately
         if (newQueue.length === 0) {
-          setCurrentIndex(0);
-          onComplete?.();
+          if (pendingCards.current.size === 0) {
+            setCurrentIndex(0);
+            onComplete?.();
+          } else {
+            setCurrentIndex(0);
+          }
         } else {
           setCurrentIndex(Math.min(newIndex, Math.max(0, newQueue.length - 1)));
         }
@@ -180,6 +209,55 @@ export function StudyCard({
     },
     [queue, currentIndex, currentCard, onComplete, deckId]
   );
+
+  useEffect(() => {
+    if (pendingTimer.current) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+
+    if (queue.length > 0 || pendingCards.current.size === 0) {
+      setWaitingUntil(null);
+      return;
+    }
+
+    const pendingList = Array.from(pendingCards.current.values());
+    const nextDue = pendingList.reduce((min, card) => {
+      const due = new Date(card.due_at).getTime();
+      return Math.min(min, due);
+    }, Number.POSITIVE_INFINITY);
+
+    if (!Number.isFinite(nextDue)) {
+      setWaitingUntil(null);
+      return;
+    }
+
+    setWaitingUntil(new Date(nextDue));
+    const delay = Math.max(0, nextDue - Date.now());
+    pendingTimer.current = setTimeout(() => {
+      const nowMs = Date.now();
+      const ready: CardType[] = [];
+      for (const [id, card] of pendingCards.current.entries()) {
+        if (new Date(card.due_at).getTime() <= nowMs) {
+          ready.push(card);
+          pendingCards.current.delete(id);
+        }
+      }
+
+      if (ready.length > 0) {
+        setQueue(ready);
+        setCurrentIndex(0);
+      }
+      setPendingCount(pendingCards.current.size);
+    }, delay);
+
+    return () => {
+      if (pendingTimer.current) {
+        clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
+    };
+  }, [queue]);
 
   const handleEditCard = () => {
     if (!currentCard) return;
@@ -246,18 +324,9 @@ export function StudyCard({
       try {
         const settings = await getSettings();
         const schedulerSettings = {
-          learning_steps: settings.learning_steps,
-          relearning_steps: settings.relearning_steps,
-          graduating_interval_days: settings.graduating_interval_days,
-          easy_interval_days: settings.easy_interval_days,
-          starting_ease: settings.starting_ease,
-          easy_bonus: settings.easy_bonus,
-          hard_interval: settings.hard_interval,
-          interval_modifier: settings.interval_modifier,
-          new_interval_multiplier: settings.new_interval_multiplier,
-          minimum_interval_days: settings.minimum_interval_days,
-          maximum_interval_days: settings.maximum_interval_days,
-          again_delay_minutes: settings.again_delay_minutes,
+          starting_ease: settings.starting_ease || 2.5,
+          easy_bonus: settings.easy_bonus || 1.3,
+          hard_interval: settings.hard_interval || 1.2,
         };
 
         const previews = previewIntervals(currentCard, schedulerSettings);
@@ -272,6 +341,34 @@ export function StudyCard({
   }, [currentCard]);
 
   if (queue.length === 0 || !currentCard) {
+    if (pendingCount > 0) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center p-8 relative">
+          <div className="absolute top-6 left-6 z-10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                router.push("/decks");
+              }}
+              className="text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Decks
+            </Button>
+          </div>
+          <div className="mx-auto flex max-w-3xl flex-col items-center justify-center space-y-3">
+            <p className="text-xl font-medium">Waiting for cards to become due</p>
+            {waitingUntil && (
+              <p className="text-sm text-muted-foreground">
+                Next card at {waitingUntil.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full w-full flex-col items-center justify-center p-8 relative">
         {/* Back to Decks button - top left */}

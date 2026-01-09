@@ -55,12 +55,17 @@ export function ReversibleCard({
         setShowBack(true);
         return;
       }
+      if (e.key === " " && showBack) {
+        e.preventDefault();
+        onRate("good");
+        return;
+      }
 
-      // Enter: Easy rating if back visible, otherwise show back
+      // Enter: Good rating if back visible, otherwise show back
       if (e.key === "Enter") {
         e.preventDefault();
         if (showBack) {
-          onRate("easy");
+          onRate("good");
         } else {
           setShowBack(true);
         }
@@ -96,7 +101,12 @@ export function ReversibleCard({
   return (
     <>
       {/* Card container with flip animation */}
-      <div className="relative w-full">
+      <div
+        className="relative w-full"
+        onClick={() => {
+          if (!showBack) setShowBack(true);
+        }}
+      >
         {/* Orientation indicator */}
         <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-xs text-muted-foreground">
           <ArrowRightLeft className="h-3 w-3" />

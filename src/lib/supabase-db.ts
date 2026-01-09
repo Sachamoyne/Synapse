@@ -684,7 +684,9 @@ export async function getDueCards(
 ): Promise<Card[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  nowDate.setMilliseconds(0);
+  const now = nowDate.toISOString();
 
   // Get all descendant deck IDs
   const deckIds = await getDeckAndAllChildren(deckId);
@@ -793,7 +795,28 @@ export async function getDueCards(
     newCards = newCardsData || [];
   }
 
-  // Combine in priority order: learning → review → new
+  if (settings.reviewOrder === "newFirst") {
+    return [...learning, ...newCards, ...reviews];
+  }
+
+  if (settings.reviewOrder === "mixed") {
+    const mixed: Card[] = [];
+    let reviewIndex = 0;
+    let newIndex = 0;
+    while (reviewIndex < reviews.length || newIndex < newCards.length) {
+      if (newIndex < newCards.length) {
+        mixed.push(newCards[newIndex]);
+        newIndex += 1;
+      }
+      if (reviewIndex < reviews.length) {
+        mixed.push(reviews[reviewIndex]);
+        reviewIndex += 1;
+      }
+    }
+    return [...learning, ...mixed];
+  }
+
+  // Default: reviews before new
   return [...learning, ...reviews, ...newCards];
 }
 
@@ -842,14 +865,13 @@ export async function getDeckCardCounts(deckId: string): Promise<{
 }> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
-  const now = new Date().toISOString();
 
   // Get all descendant deck IDs
   const deckIds = await getDeckAndAllChildren(deckId);
 
   const { data, error } = await supabase
     .from("cards")
-    .select("state, due_at")
+    .select("state")
     .in("deck_id", deckIds)
     .eq("user_id", userId)
     .eq("suspended", false);
@@ -861,12 +883,11 @@ export async function getDeckCardCounts(deckId: string): Promise<{
   let reviewCount = 0;
 
   for (const card of data || []) {
-    // Only count cards that are due now (consistent with getDueCards logic)
-    if (card.state === "new" && card.due_at <= now) {
+    if (card.state === "new") {
       newCount++;
-    } else if (card.state === "learning" && card.due_at <= now) {
+    } else if (card.state === "learning" || card.state === "relearning") {
       learningCount++;
-    } else if (card.state === "review" && card.due_at <= now) {
+    } else if (card.state === "review") {
       reviewCount++;
     }
   }
@@ -957,8 +978,8 @@ export async function getAllDeckCounts(deckIds: string[]): Promise<{
     for (const card of deckCards) {
       if (card.due_at <= now) {
         if (card.state === "new") counts.new++;
-        else if (card.state === "learning") counts.learning++;
         else if (card.state === "review") counts.review++;
+        else if (card.state === "learning" || card.state === "relearning") counts.learning++;
       }
     }
     learningCounts[deckId] = counts;
@@ -969,11 +990,38 @@ export async function getAllDeckCounts(deckIds: string[]): Promise<{
   return result;
 }
 
+export async function getAnkiCountsForDecks(deckIds: string[]): Promise<{
+  due: Record<string, { new: number; learning: number; review: number }>;
+  total: Record<string, number>;
+}> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_deck_anki_counts", {
+    deck_ids: deckIds,
+  });
+
+  if (error) throw error;
+
+  const due: Record<string, { new: number; learning: number; review: number }> = {};
+  const total: Record<string, number> = {};
+
+  for (const row of data || []) {
+    due[row.deck_id] = {
+      new: row.new_due ?? 0,
+      learning: row.learning_due ?? 0,
+      review: row.review_due ?? 0,
+    };
+    total[row.deck_id] = row.total_cards ?? 0;
+  }
+
+  return { due, total };
+}
+
 export async function reviewCard(
   cardId: string,
   rating: "again" | "hard" | "good" | "easy",
   elapsedMs?: number
-): Promise<void> {
+): Promise<Card> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
 
@@ -1004,9 +1052,9 @@ export async function reviewCard(
   const settings = await getSettings();
 
   console.log("⚙️ Settings loaded:", {
-    learning_steps: settings.learning_steps,
-    graduating_interval_days: settings.graduating_interval_days,
     starting_ease: settings.starting_ease,
+    easy_bonus: settings.easy_bonus,
+    hard_interval: settings.hard_interval,
   });
 
   // Import scheduler
@@ -1014,18 +1062,9 @@ export async function reviewCard(
 
   // Prepare scheduler settings
   const schedulerSettings = {
-    learning_steps: settings.learning_steps || "1m 10m",
-    relearning_steps: settings.relearning_steps || "10m",
-    graduating_interval_days: settings.graduating_interval_days || 1,
-    easy_interval_days: settings.easy_interval_days || 4,
     starting_ease: settings.starting_ease || 2.5,
     easy_bonus: settings.easy_bonus || 1.3,
     hard_interval: settings.hard_interval || 1.2,
-    interval_modifier: settings.interval_modifier || 1.0,
-    new_interval_multiplier: settings.new_interval_multiplier || 0.0,
-    minimum_interval_days: settings.minimum_interval_days || 1,
-    maximum_interval_days: settings.maximum_interval_days || 36500,
-    again_delay_minutes: settings.again_delay_minutes || 10,
   };
 
   const now = new Date();
@@ -1101,6 +1140,7 @@ export async function reviewCard(
     new_due_at: updatedCard.due_at,
   });
   invalidateCardCaches();
+  invalidateDeckCaches();
 
   // Create detailed review record
   const reviewData = {
@@ -1137,6 +1177,7 @@ export async function reviewCard(
     .eq("user_id", userId);
 
   console.log("🔷 reviewCard COMPLETE");
+  return updatedCard as Card;
 }
 
 // Settings functions

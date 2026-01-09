@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ export default function AddCardsPage() {
   const [creating, setCreating] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const frontRef = useRef<HTMLTextAreaElement>(null);
 
   const handleCreateCard = async () => {
     if (!front.trim() || !back.trim()) {
@@ -46,7 +47,6 @@ export default function AddCardsPage() {
       // Clear form
       setFront("");
       setBack("");
-      setCardType("basic");
 
       // Show success message
       setSuccessMessage("Card created successfully!");
@@ -55,7 +55,7 @@ export default function AddCardsPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
 
       // Focus back on front field for quick card entry
-      document.getElementById("card-front")?.focus();
+      frontRef.current?.focus();
     } catch (error) {
       console.error("Error creating card:", error);
       alert("Failed to create card. Please try again.");
@@ -112,8 +112,8 @@ export default function AddCardsPage() {
                 value={cardType}
                 onValueChange={(value) => setCardType(value as CardTypeEnum)}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 shadow-sm flex items-center justify-between text-sm hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-indigo-500">
+                  <SelectValue className="leading-none text-sm" />
                 </SelectTrigger>
                 <SelectContent>
                   {CARD_TYPES.map((type) => (
@@ -137,12 +137,14 @@ export default function AddCardsPage() {
               </label>
               <Textarea
                 id="card-front"
+                ref={frontRef}
                 value={front}
                 onChange={(e) => setFront(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter the question or front side of the card"
                 rows={4}
-                className="resize-none"
+                className="resize-none rounded-lg border border-input bg-muted/10 focus-visible:ring-2 focus-visible:ring-ring"
+                autoFocus
               />
             </div>
 
@@ -158,7 +160,7 @@ export default function AddCardsPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="Enter the answer or back side of the card"
                 rows={4}
-                className="resize-none"
+                className="resize-none rounded-lg border border-input bg-muted/10 focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 

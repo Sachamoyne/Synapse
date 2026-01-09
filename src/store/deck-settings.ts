@@ -9,8 +9,6 @@ export type DeckSettings = {
   deckId: string;
   newCardsPerDay: number | null;
   maxReviewsPerDay: number | null;
-  learningMode: "fast" | "normal" | "deep" | null;
-  againDelayMinutes: number | null;
   reviewOrder: "mixed" | "oldFirst" | "newFirst" | null;
 };
 
@@ -21,8 +19,6 @@ type DeckSettingsRow = {
   deck_id: string;
   new_cards_per_day: number | null;
   max_reviews_per_day: number | null;
-  learning_mode: string | null;
-  again_delay_minutes: number | null;
   review_order: string | null;
   created_at: string;
   updated_at: string;
@@ -35,8 +31,6 @@ function fromDatabaseRow(row: DeckSettingsRow): DeckSettings {
     deckId: row.deck_id,
     newCardsPerDay: row.new_cards_per_day,
     maxReviewsPerDay: row.max_reviews_per_day,
-    learningMode: row.learning_mode as "fast" | "normal" | "deep" | null,
-    againDelayMinutes: row.again_delay_minutes,
     reviewOrder: row.review_order as "mixed" | "oldFirst" | "newFirst" | null,
   };
 }
@@ -46,8 +40,6 @@ function toDatabaseRow(settings: DeckSettings): Partial<DeckSettingsRow> {
   return {
     new_cards_per_day: settings.newCardsPerDay ?? null,
     max_reviews_per_day: settings.maxReviewsPerDay ?? null,
-    learning_mode: settings.learningMode ?? null,
-    again_delay_minutes: settings.againDelayMinutes ?? null,
     review_order: settings.reviewOrder ?? null,
   };
 }
@@ -93,8 +85,6 @@ export async function getDeckSettings(deckId: string): Promise<DeckSettings> {
       deckId,
       newCardsPerDay: null,
       maxReviewsPerDay: null,
-      learningMode: null,
-      againDelayMinutes: null,
       reviewOrder: null,
     };
   }
@@ -116,8 +106,6 @@ export async function getEffectiveDeckSettings(deckId: string): Promise<Settings
     id: "global",
     newCardsPerDay: deckSettings.newCardsPerDay ?? globalSettings.newCardsPerDay,
     maxReviewsPerDay: deckSettings.maxReviewsPerDay ?? globalSettings.maxReviewsPerDay,
-    learningMode: deckSettings.learningMode ?? globalSettings.learningMode,
-    againDelayMinutes: deckSettings.againDelayMinutes ?? globalSettings.againDelayMinutes,
     reviewOrder: deckSettings.reviewOrder ?? globalSettings.reviewOrder,
   };
 }
@@ -125,7 +113,7 @@ export async function getEffectiveDeckSettings(deckId: string): Promise<Settings
 /**
  * Update deck-specific settings
  */
-export async function updateDeckSettings(deckId: string, settings: DeckSettings): Promise<void> {
+export async function updateDeckSettings(deckId: string, settings: DeckSettings): Promise<DeckSettings> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
 
@@ -141,24 +129,30 @@ export async function updateDeckSettings(deckId: string, settings: DeckSettings)
 
   if (existing) {
     // Update existing settings
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("deck_settings")
       .update(dbSettings)
       .eq("id", existing.id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .select("*")
+      .single();
 
     if (error) throw error;
+    return fromDatabaseRow(data as DeckSettingsRow);
   } else {
     // Create new settings
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("deck_settings")
       .insert({
         user_id: userId,
         deck_id: deckId,
         ...dbSettings,
-      });
+      })
+      .select("*")
+      .single();
 
     if (error) throw error;
+    return fromDatabaseRow(data as DeckSettingsRow);
   }
 }
 

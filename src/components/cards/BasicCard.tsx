@@ -28,6 +28,10 @@ export function BasicCard({
 }: BasicCardProps) {
   const [showBack, setShowBack] = useState(false);
 
+  useEffect(() => {
+    setShowBack(false);
+  }, [card.id]);
+
   // Keyboard shortcuts for basic card
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,12 +49,17 @@ export function BasicCard({
         setShowBack(true);
         return;
       }
+      if (e.key === " " && showBack) {
+        e.preventDefault();
+        onRate("good");
+        return;
+      }
 
-      // Enter: Easy rating if back visible, otherwise show back
+      // Enter: Good rating if back visible, otherwise show back
       if (e.key === "Enter") {
         e.preventDefault();
         if (showBack) {
-          onRate("easy");
+          onRate("good");
         } else {
           setShowBack(true);
         }
@@ -82,7 +91,12 @@ export function BasicCard({
   return (
     <>
       {/* Card container with flip animation */}
-      <div className="relative w-full">
+      <div
+        className="relative w-full"
+        onClick={() => {
+          if (!showBack) setShowBack(true);
+        }}
+      >
         <div
           className="relative w-full min-h-[400px]"
           style={{

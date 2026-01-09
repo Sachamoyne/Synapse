@@ -1,56 +1,88 @@
-// Re-export settings functions from the Supabase implementation
-import { getSettings as getSupabaseSettings, updateSettings as updateSupabaseSettings, type Settings as SupabaseSettings } from "@/lib/supabase-db";
+import { createClient } from "@/lib/supabase/client";
 
 export type Settings = {
   id: "global";
   newCardsPerDay: number;
   maxReviewsPerDay: number;
-  learningMode: "fast" | "normal" | "deep";
-  againDelayMinutes: number;
   reviewOrder: "mixed" | "oldFirst" | "newFirst";
 };
 
-// Convert from Supabase format to UI format
-function fromSupabaseSettings(supabaseSettings: SupabaseSettings): Settings {
+const DEFAULT_SETTINGS: Settings = {
+  id: "global",
+  newCardsPerDay: 20,
+  maxReviewsPerDay: 9999,
+  reviewOrder: "mixed",
+};
+
+type UserSettingsRow = {
+  user_id: string;
+  default_new_per_day: number;
+  default_reviews_per_day: number;
+  default_display_order: "mixed" | "oldFirst" | "newFirst";
+};
+
+async function getCurrentUserId(): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    throw new Error("Not authenticated");
+  }
+  return data.user.id;
+}
+
+function fromUserSettings(row: UserSettingsRow): Settings {
   return {
     id: "global",
-    newCardsPerDay: supabaseSettings.new_cards_per_day,
-    maxReviewsPerDay: supabaseSettings.max_reviews_per_day,
-    learningMode: supabaseSettings.learning_mode as "fast" | "normal" | "deep",
-    againDelayMinutes: supabaseSettings.again_delay_minutes,
-    reviewOrder: supabaseSettings.review_order as "mixed" | "oldFirst" | "newFirst",
+    newCardsPerDay: row.default_new_per_day,
+    maxReviewsPerDay: row.default_reviews_per_day,
+    reviewOrder: row.default_display_order,
   };
 }
 
-// Convert from UI format to Supabase format
-function toSupabaseSettings(settings: Settings): Partial<SupabaseSettings> {
+function toUserSettingsRow(userId: string, settings: Settings): UserSettingsRow {
   return {
-    new_cards_per_day: settings.newCardsPerDay,
-    max_reviews_per_day: settings.maxReviewsPerDay,
-    learning_mode: settings.learningMode,
-    again_delay_minutes: settings.againDelayMinutes,
-    review_order: settings.reviewOrder,
+    user_id: userId,
+    default_new_per_day: settings.newCardsPerDay,
+    default_reviews_per_day: settings.maxReviewsPerDay,
+    default_display_order: settings.reviewOrder,
   };
 }
 
 export async function getSettings(): Promise<Settings> {
-  const supabaseSettings = await getSupabaseSettings();
-  return fromSupabaseSettings(supabaseSettings);
-}
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
 
-export async function updateSettings(settings: Settings): Promise<void> {
-  await updateSupabaseSettings(toSupabaseSettings(settings));
-}
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("user_id, default_new_per_day, default_reviews_per_day, default_display_order")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-export function getLearningSteps(mode: "fast" | "normal" | "deep"): number[] {
-  switch (mode) {
-    case "fast":
-      return [1, 10];
-    case "normal":
-      return [1, 10, 60];
-    case "deep":
-      return [1, 10, 60, 180];
-    default:
-      return [1, 10, 60];
+  if (error) throw error;
+
+  if (!data) {
+    const { error: insertError } = await supabase
+      .from("user_settings")
+      .insert(toUserSettingsRow(userId, DEFAULT_SETTINGS));
+    if (insertError) throw insertError;
+    return { ...DEFAULT_SETTINGS };
   }
+
+  return fromUserSettings(data as UserSettingsRow);
+}
+
+export async function updateSettings(settings: Partial<Settings>): Promise<void> {
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
+  const next = { ...DEFAULT_SETTINGS, ...settings };
+
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert(toUserSettingsRow(userId, next));
+
+  if (error) throw error;
+}
+
+export function getLearningSteps(): number[] {
+  return [1];
 }

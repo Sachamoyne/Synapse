@@ -198,6 +198,7 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
         onOpenChange={setOptionsDialogOpen}
         deckId={deckId}
         deckName={deckName}
+        onSaved={onUpdate}
       />
     </>
   );
