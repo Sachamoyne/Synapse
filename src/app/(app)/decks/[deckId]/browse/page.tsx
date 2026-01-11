@@ -110,6 +110,11 @@ export default function BrowseCardsPage() {
   const [editBack, setEditBack] = useState("");
   const [editCardType, setEditCardType] = useState<CardTypeEnum>("basic");
 
+  const isFinePointer = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(pointer: fine)").matches;
+
   const loadCards = async () => {
     setLoading(true);
     setError(null);
@@ -282,22 +287,33 @@ export default function BrowseCardsPage() {
     const end = Math.max(dragStartIndex, index);
     setSelectedCardIds(new Set(cards.slice(start, end + 1).map((c) => c.id)));
   };
-  const handleOpenContextMenu = (
-    e: React.MouseEvent,
-    cardId: string
-  ) => {
-    e.preventDefault();
+  const openContextMenuAt = (cardId: string, x: number, y: number) => {
     if (!selectedCardIds.has(cardId)) {
       setSelectedCardIds(new Set([cardId]));
       lastSelectedIndex.current = cards.findIndex((c) => c.id === cardId);
     }
     setContextMenu({
       cardId,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
     });
     setActiveCardId(cardId);
     setIsEditing(false);
+  };
+
+  const handleOpenContextMenu = (e: React.MouseEvent, cardId: string) => {
+    if (!isFinePointer()) return;
+    e.preventDefault();
+    openContextMenuAt(cardId, e.clientX, e.clientY);
+  };
+
+  const handleOpenContextMenuButton = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    cardId: string
+  ) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    openContextMenuAt(cardId, rect.right, rect.bottom);
   };
   const handleSetDueDate = async () => {
     if (!contextCard || !dueDateValue) return;
@@ -420,6 +436,18 @@ export default function BrowseCardsPage() {
                     {/* Due date */}
                     <div className="w-32 text-sm text-muted-foreground">
                       {getNextReviewText(card)}
+                    </div>
+
+                    <div className="ml-2 sm:hidden">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-11"
+                        aria-label="Card actions"
+                        onClick={(e) => handleOpenContextMenuButton(e, card.id)}
+                      >
+                        <span className="text-lg leading-none">⋯</span>
+                      </Button>
                     </div>
                   </div>
                 );

@@ -190,13 +190,13 @@ export function DeckTree({
             );
           })()}
 
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <Button
               size="sm"
               variant="ghost"
               onClick={handleAddCardClick}
               aria-label="Add card"
-              className="h-7 px-2 text-xs hover:bg-white/10"
+              className="h-11 w-11 sm:h-7 sm:w-7 px-0 sm:px-2 text-xs hover:bg-white/10"
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>

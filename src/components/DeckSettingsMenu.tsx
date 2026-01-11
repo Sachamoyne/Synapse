@@ -72,7 +72,7 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
           <Button
             size="sm"
             variant="ghost"
-            className="hover:bg-gray-200"
+            className="h-11 w-11 sm:h-7 sm:w-7 px-0 hover:bg-gray-200"
             aria-label="Deck settings"
           >
             <Settings className="h-4 w-4" />
