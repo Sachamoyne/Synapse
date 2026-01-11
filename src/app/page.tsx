@@ -6,10 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { ArrowRight, Brain, Layers, Sparkles } from "lucide-react";
 import { Playfair_Display } from "next/font/google";
+import { useTranslation } from "@/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const [userPresent, setUserPresent] = useState(false);
   const [betaEmail, setBetaEmail] = useState("");
   const [betaLoading, setBetaLoading] = useState(false);
@@ -39,7 +42,7 @@ export default function LandingPage() {
 
     const trimmed = betaEmail.trim();
     if (!trimmed || !trimmed.includes("@")) {
-      setBetaError("Please enter a valid email.");
+      setBetaError(t("landing.invalidEmail"));
       setBetaSuccess(false);
       return;
     }
@@ -56,9 +59,9 @@ export default function LandingPage() {
       if (error) {
         console.error("beta_waitlist insert error", error);
         if ((error as { code?: string }).code === "23505") {
-          setBetaError("You're already on the list.");
+          setBetaError(t("landing.alreadyOnList"));
         } else {
-          setBetaError("Something went wrong. Please try again.");
+          setBetaError(t("landing.genericError"));
         }
         setBetaSuccess(false);
       } else {
@@ -90,14 +93,15 @@ export default function LandingPage() {
             </div>
             <nav className="hidden items-center gap-8 text-xs font-light tracking-[0.2em] text-white/75 sm:flex">
               <Link className="transition hover:text-white" href="/pricing">
-                Pricing
+                {t("nav.pricing")}
               </Link>
               <Link className="transition hover:text-white" href="#about">
-                About
+                {t("nav.about")}
               </Link>
               <Link className="transition hover:text-white" href="/login">
-                Login
+                {t("nav.login")}
               </Link>
+              <LanguageToggle variant="landing" />
             </nav>
           </div>
         </header>
@@ -106,17 +110,20 @@ export default function LandingPage() {
           <div className="flex w-full max-w-3xl flex-col items-center justify-center text-center">
             <div className="mb-6 inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.25em] text-white/80">
               <Sparkles className="h-3.5 w-3.5" />
-              Clarte mentale augmentee
+              {t("landing.taglineBadge")}
             </div>
             <h1
               className={`${playfair.className} text-4xl font-semibold leading-tight text-white/95 sm:text-6xl lg:text-7xl`}
             >
-              Master anything,
-              <br />
-              remember everything.
+              {t("landing.headline").split("\n").map((line, i) => (
+                <span key={i}>
+                  {line}
+                  {i === 0 && <br />}
+                </span>
+              ))}
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base text-white/70 sm:text-lg">
-              {APP_TAGLINE}. Une experience premium pour memoriser plus vite, avec elegance et precision.
+              {APP_TAGLINE}. {t("landing.subheadline")}
             </p>
 
             {!userPresent && (
@@ -125,7 +132,7 @@ export default function LandingPage() {
                   href="/login"
                   className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-white/20 transition hover:shadow-xl hover:shadow-white/30"
                 >
-                  Login
+                  {t("landing.loginButton")}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
@@ -143,7 +150,7 @@ export default function LandingPage() {
                   <input
                     type="email"
                     className="h-12 w-full flex-1 rounded-full border border-white/15 bg-white/10 px-5 text-sm text-white/80 placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
-                    placeholder="Enter your email to get beta access"
+                    placeholder={t("landing.emailPlaceholder")}
                     value={betaEmail}
                     onChange={(event) => {
                       setBetaEmail(event.target.value);
@@ -158,11 +165,11 @@ export default function LandingPage() {
                     disabled={betaLoading}
                     className="group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-slate-900 shadow-lg shadow-white/20 transition hover:shadow-xl hover:shadow-white/30 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {betaLoading ? "Joining..." : "Join the beta"}
+                    {betaLoading ? t("landing.joining") : t("landing.joinBeta")}
                   </button>
                 </div>
                 <div className="mt-3 flex flex-col items-center gap-2 text-xs uppercase tracking-[0.35em] text-white/60">
-                  <span>Private beta - Early access</span>
+                  <span>{t("landing.privateBeta")}</span>
                   {betaError ? (
                     <span className="text-sm normal-case text-amber-200">
                       {betaError}
@@ -174,13 +181,13 @@ export default function LandingPage() {
               {betaSuccess && (
                 <div className="mt-4 rounded-3xl border border-white/15 bg-white/10 px-6 py-5 text-center shadow-xl shadow-white/10 backdrop-blur transition-all duration-200 motion-reduce:transition-none">
                   <p className={`${playfair.className} text-2xl text-white/90`}>
-                    You&apos;re in.
+                    {t("landing.betaSuccess")}
                   </p>
                   <p className="mt-2 text-sm text-white/60">
-                    You&apos;ll receive early access to the private beta.
+                    {t("landing.betaSuccessSubtext")}
                   </p>
                   <p className="mt-3 text-xs uppercase tracking-[0.35em] text-white/40">
-                    No spam. Only meaningful updates.
+                    {t("landing.betaNoSpam")}
                   </p>
                 </div>
               )}
@@ -192,15 +199,15 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-8 px-6 py-10 text-xs uppercase tracking-[0.35em] text-white/60">
             <div className="flex items-center gap-3">
               <Brain className="h-4 w-4 stroke-[1.2]" />
-              AI-powered
+              {t("landing.aiPowered")}
             </div>
             <div className="flex items-center gap-3">
               <Sparkles className="h-4 w-4 stroke-[1.2]" />
-              Science-backed
+              {t("landing.scienceBacked")}
             </div>
             <div className="flex items-center gap-3">
               <Layers className="h-4 w-4 stroke-[1.2]" />
-              Anki compatible
+              {t("landing.ankiCompatible")}
             </div>
           </div>
         </section>
@@ -208,7 +215,7 @@ export default function LandingPage() {
         <section className="relative z-10 border-t border-white/10 bg-slate-950/80">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-16 text-center">
             <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-              Used by students from top institutions
+              {t("landing.usedBy")}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8 text-sm font-semibold tracking-[0.2em] text-white/40">
               <span>HEC</span>
@@ -223,19 +230,11 @@ export default function LandingPage() {
         <section id="about" className="relative z-10 border-t border-white/10 bg-slate-950/85">
           <div className="mx-auto grid max-w-5xl gap-10 px-6 py-20 text-left sm:grid-cols-[1fr_1.2fr]">
             <h2 className={`${playfair.className} text-3xl text-white/90`}>
-              About Synapse
+              {t("landing.aboutTitle")}
             </h2>
             <div className="space-y-4 text-white/70">
-              <p>
-                Synapse is built to help you learn better, not more. We focus on
-                clarity, cognitive science, and spaced repetition to make every
-                review session count.
-              </p>
-              <p>
-                The product is designed as a quiet companion for serious
-                learners. Every surface stays minimal so your attention stays on
-                what matters.
-              </p>
+              <p>{t("landing.aboutP1")}</p>
+              <p>{t("landing.aboutP2")}</p>
             </div>
           </div>
         </section>

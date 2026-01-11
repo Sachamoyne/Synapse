@@ -30,7 +30,7 @@ export function BasicCard({
 
   useEffect(() => {
     setShowBack(false);
-  }, [card.id]);
+  }, [card.id, card.state, card.due_at]);
 
   // Keyboard shortcuts for basic card
   useEffect(() => {

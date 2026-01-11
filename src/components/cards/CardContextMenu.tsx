@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import { useTranslation } from "@/i18n";
 
 interface CardContextMenuProps {
   open: boolean;
@@ -27,6 +27,8 @@ export function CardContextMenu({
   onToggleSuspend,
   onToggleMark,
 }: CardContextMenuProps) {
+  const { t } = useTranslation();
+
   if (!open) return null;
 
   const itemClassName =
@@ -45,31 +47,31 @@ export function CardContextMenu({
         className={itemClassName}
         onClick={onChangeDeck}
       >
-        Change deck...
+        {t("cardContext.changeDeck")}
       </button>
       <button
         className={itemClassName}
         onClick={onSetDueDate}
       >
-        Set due date...
+        {t("cardContext.setDueDate")}
       </button>
       <button
         className={`${itemClassName} ${warningTextClassName}`}
         onClick={onForget}
       >
-        Forget
+        {t("cardContext.forget")}
       </button>
       <button
         className={`${itemClassName} ${warningTextClassName}`}
         onClick={onToggleSuspend}
       >
-        {suspended ? "Unsuspend" : "Suspend"}
+        {suspended ? t("cardContext.unsuspend") : t("cardContext.suspend")}
       </button>
       <button
         className={itemClassName}
         onClick={onToggleMark}
       >
-        {marked ? "Unmark" : "Mark"}
+        {marked ? t("cardContext.unmark") : t("cardContext.mark")}
       </button>
     </div>
   );

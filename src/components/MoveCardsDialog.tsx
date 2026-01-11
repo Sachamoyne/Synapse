@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { listDecksWithPaths, moveCardsToDeck } from "@/store/decks";
 import type { Deck } from "@/lib/db";
+import { useTranslation } from "@/i18n";
 
 interface MoveCardsDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function MoveCardsDialog({
   currentDeckId,
   onSuccess,
 }: MoveCardsDialogProps) {
+  const { t } = useTranslation();
   const [decksWithPaths, setDecksWithPaths] = useState<
     Array<{ deck: Deck; path: string }>
   >([]);
@@ -47,7 +49,6 @@ export function MoveCardsDialog({
   const loadDecks = async () => {
     try {
       const decks = await listDecksWithPaths();
-      // Filter out current deck
       const filtered = decks.filter((d) => d.deck.id !== currentDeckId);
       const usableDecks = filtered.length > 0 ? filtered : decks;
       setDecksWithPaths(usableDecks);
@@ -56,18 +57,18 @@ export function MoveCardsDialog({
       );
     } catch (err) {
       console.error("Error loading decks:", err);
-      setError("Failed to load decks");
+      setError(t("moveCards.failedToLoad"));
     }
   };
 
   const handleMove = async () => {
     if (!selectedDeckId) {
-      setError("Please select a deck");
+      setError(t("moveCards.pleaseSelectDeck"));
       return;
     }
 
     if (cardIds.length === 0) {
-      setError("No cards selected");
+      setError(t("moveCards.noCardsSelected"));
       return;
     }
 
@@ -80,9 +81,7 @@ export function MoveCardsDialog({
       onOpenChange(false);
     } catch (err) {
       console.error("Error moving cards:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to move cards"
-      );
+      setError(t("moveCards.failedToMove"));
     } finally {
       setLoading(false);
     }
@@ -92,14 +91,14 @@ export function MoveCardsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Move cards</DialogTitle>
+          <DialogTitle>{t("moveCards.title")}</DialogTitle>
           <DialogDescription>
-            Move {cardIds.length} card{cardIds.length !== 1 ? "s" : ""} to...
+            {t("moveCards.moveCount", { count: cardIds.length })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div>
-            <Label htmlFor="targetDeck">Select Deck</Label>
+            <Label htmlFor="targetDeck">{t("moveCards.selectDeck")}</Label>
             <select
               id="targetDeck"
               value={selectedDeckId}
@@ -110,7 +109,7 @@ export function MoveCardsDialog({
               className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={loading}
             >
-              <option value="">Select a deck...</option>
+              <option value="">{t("moveCards.selectDeckPlaceholder")}</option>
               {decksWithPaths.map(({ deck, path }) => (
                 <option key={deck.id} value={deck.id}>
                   {path}
@@ -130,10 +129,10 @@ export function MoveCardsDialog({
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleMove} disabled={loading || !selectedDeckId}>
-            {loading ? "Moving..." : "Move"}
+            {loading ? t("moveCards.moving") : t("moveCards.move")}
           </Button>
         </DialogFooter>
       </DialogContent>

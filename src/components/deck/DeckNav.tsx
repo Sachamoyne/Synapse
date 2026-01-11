@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Plus, List, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -11,30 +12,40 @@ interface DeckNavProps {
 
 export function DeckNav({ deckId }: DeckNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
-  const navItems = [
-    {
-      label: "Overview",
-      href: `/decks/${deckId}`,
-      icon: null,
-      exact: true,
-    },
-    {
-      label: "Add",
-      href: `/decks/${deckId}/add`,
-      icon: Plus,
-    },
-    {
-      label: "Browse",
-      href: `/decks/${deckId}/browse`,
-      icon: List,
-    },
-    {
-      label: "Stats",
-      href: `/decks/${deckId}/stats`,
-      icon: BarChart3,
-    },
-  ];
+  const navItems = useMemo(
+    () => [
+      {
+        label: "Overview",
+        href: `/decks/${deckId}`,
+        icon: null,
+        exact: true,
+      },
+      {
+        label: "Add",
+        href: `/decks/${deckId}/add`,
+        icon: Plus,
+      },
+      {
+        label: "Browse",
+        href: `/decks/${deckId}/browse`,
+        icon: List,
+      },
+      {
+        label: "Stats",
+        href: `/decks/${deckId}/stats`,
+        icon: BarChart3,
+      },
+    ],
+    [deckId]
+  );
+
+  useEffect(() => {
+    navItems.forEach((item) => {
+      router.prefetch(item.href);
+    });
+  }, [router, navItems]);
 
   return (
     <nav className="border-b bg-background">

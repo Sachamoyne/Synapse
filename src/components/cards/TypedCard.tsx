@@ -41,7 +41,7 @@ export function TypedCard({
     setIsCorrect(false);
     // Auto-focus input on card load
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [card.id]);
+  }, [card.id, card.state, card.due_at]);
 
   const handleSubmit = () => {
     if (!userAnswer.trim()) return;

@@ -9,10 +9,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Playfair_Display } from "next/font/google";
+import { useTranslation } from "@/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,7 +58,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err.message || t("auth.errorOccurred"));
     } finally {
       setLoading(false);
     }
@@ -74,13 +77,18 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[4px]" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/20 via-slate-950/50 to-slate-950/80" />
 
+        {/* Language toggle in top right */}
+        <div className="absolute top-6 right-6 z-20">
+          <LanguageToggle variant="minimal" />
+        </div>
+
         <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-16">
           <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
             <div className="flex flex-col items-center gap-4 text-center">
               <BrandLogo size={48} iconSize={28} />
               <div>
                 <h1 className={`${playfair.className} text-2xl font-semibold text-white`}>
-                  Sign in to {APP_NAME}
+                  {t("auth.signIn", { appName: APP_NAME })}
                 </h1>
               </div>
             </div>
@@ -88,7 +96,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-xs uppercase tracking-[0.25em] text-white/60">
-                  Email
+                  {t("auth.email")}
                 </label>
                 <Input
                   id="email"
@@ -104,7 +112,7 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <label htmlFor="password" className="text-xs uppercase tracking-[0.25em] text-white/60">
-                  Password
+                  {t("auth.password")}
                 </label>
                 <div className="relative">
                   <Input
@@ -144,7 +152,7 @@ export default function LoginPage() {
                 className="w-full h-11 text-sm font-semibold bg-white text-slate-900 hover:bg-white/90"
                 disabled={loading}
               >
-                {loading ? "Loading..." : mode === "signin" ? "Continue" : "Create account"}
+                {loading ? t("common.loading") : mode === "signin" ? t("auth.continue") : t("auth.createAccount")}
               </Button>
 
               <Button
@@ -168,7 +176,7 @@ export default function LoginPage() {
                     d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
                   ></path>
                 </svg>
-                Continue with Google
+                {t("auth.continueWithGoogle")}
               </Button>
 
               <div className="text-center text-xs text-white/60">
@@ -181,7 +189,7 @@ export default function LoginPage() {
                   className="transition hover:text-white"
                   disabled={loading}
                 >
-                  {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+                  {mode === "signin" ? t("auth.needAccount") : t("auth.haveAccount")}
                 </button>
               </div>
             </form>

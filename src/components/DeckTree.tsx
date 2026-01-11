@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import type { Deck } from "@/lib/db";
 import { ChevronRight, ChevronDown, BookOpen, Plus } from "lucide-react";
 import { DeckSettingsMenu } from "@/components/DeckSettingsMenu";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslation } from "@/i18n";
 
 interface DeckTreeProps {
   deck: Deck;
@@ -42,6 +43,7 @@ export function DeckTree({
   onDeckCreated,
   onDeckDeleted,
 }: DeckTreeProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const supabase = createClient();
   const [subDeckDialogOpen, setSubDeckDialogOpen] = useState(false);
@@ -50,14 +52,14 @@ export function DeckTree({
   const [cardFront, setCardFront] = useState("");
   const [cardBack, setCardBack] = useState("");
 
-  // Find children and parent
+  useEffect(() => {
+    router.prefetch(`/decks/${deck.id}`);
+  }, [router, deck.id]);
+
   const children = allDecks.filter((d) => d.parent_deck_id === deck.id);
   const hasChildren = children.length > 0;
-  const indent = level * 20; // 20px per level for clear hierarchy
+  const indent = level * 20;
   const expanded = expandedDeckIds.has(deck.id);
-  const parentDeck = deck.parent_deck_id
-    ? allDecks.find((d) => d.id === deck.parent_deck_id)
-    : null;
 
   const handleCreateSubDeck = async () => {
     if (!subDeckName.trim()) return;
@@ -81,11 +83,6 @@ export function DeckTree({
     onToggleExpand(deck.id);
   };
 
-  const handleAddSubDeckClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSubDeckDialogOpen(true);
-  };
-
   const handleAddCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setAddCardDialogOpen(true);
@@ -99,7 +96,7 @@ export function DeckTree({
       setCardFront("");
       setCardBack("");
       setAddCardDialogOpen(false);
-      onDeckCreated(); // Reload counts
+      onDeckCreated();
     } catch (error) {
       console.error("Error creating card:", error);
     }
@@ -121,7 +118,6 @@ export function DeckTree({
         tabIndex={0}
         aria-label={`Study deck: ${deck.name}`}
       >
-        {/* Left: Chevron + Icon + Name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {hasChildren ? (
             <button
@@ -144,12 +140,10 @@ export function DeckTree({
           </span>
         </div>
 
-        {/* Right: Counts + Actions */}
         <div className="flex items-center gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {/* Counts - Fixed width grid for strict alignment */}
           {(() => {
             const counts = learningCounts[deck.id] || { new: 0, learning: 0, review: 0 };
-            const totalCards = cardCounts[deck.id] || 0;            
+            const totalCards = cardCounts[deck.id] || 0;
 
             if (learningCounts[deck.id] !== undefined) {
               return (
@@ -196,7 +190,6 @@ export function DeckTree({
             );
           })()}
 
-          {/* Actions - visible on hover */}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               size="sm"
@@ -238,14 +231,14 @@ export function DeckTree({
       <Dialog open={subDeckDialogOpen} onOpenChange={setSubDeckDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New sub-deck</DialogTitle>
+            <DialogTitle>{t("deckTree.newSubDeck")}</DialogTitle>
             <DialogDescription>
-              Create a sub-deck under &quot;{deck.name}&quot;.
+              {t("deckTree.newSubDeckDesc", { deckName: deck.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Input
-              placeholder="Sub-deck name"
+              placeholder={t("deckTree.subDeckName")}
               value={subDeckName}
               onChange={(e) => setSubDeckName(e.target.value)}
               onKeyDown={(e) => {
@@ -257,9 +250,9 @@ export function DeckTree({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSubDeckDialogOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleCreateSubDeck}>Create</Button>
+            <Button onClick={handleCreateSubDeck}>{t("common.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -267,49 +260,39 @@ export function DeckTree({
       <Dialog open={addCardDialogOpen} onOpenChange={setAddCardDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New card</DialogTitle>
+            <DialogTitle>{t("deckTree.newCard")}</DialogTitle>
             <DialogDescription>
-              Add a new card to &quot;{deck.name}&quot;.
+              {t("deckTree.newCardDesc", { deckName: deck.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <label className="mb-2 block text-sm font-medium">Front</label>
+              <label className="mb-2 block text-sm font-medium">{t("deckTree.front")}</label>
               <Input
-                placeholder="Question or front text"
+                placeholder={t("deckTree.questionPlaceholder")}
                 value={cardFront}
-                onChange={(e) => {
-                  setCardFront(e.target.value);
-                }}
+                onChange={(e) => setCardFront(e.target.value)}
               />
-              <div className="mt-1 text-xs text-muted-foreground">
-                DEBUG State: {cardFront} | Reversed: {cardFront.split("").reverse().join("")}
-              </div>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">Back</label>
+              <label className="mb-2 block text-sm font-medium">{t("deckTree.back")}</label>
               <Input
-                placeholder="Answer or back text"
+                placeholder={t("deckTree.answerPlaceholder")}
                 value={cardBack}
-                onChange={(e) => {
-                  setCardBack(e.target.value);
-                }}
+                onChange={(e) => setCardBack(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && cardFront.trim() && cardBack.trim()) {
                     handleCreateCard();
                   }
                 }}
               />
-              <div className="mt-1 text-xs text-muted-foreground">
-                DEBUG State: {cardBack} | Reversed: {cardBack.split("").reverse().join("")}
-              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddCardDialogOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleCreateCard}>Create</Button>
+            <Button onClick={handleCreateCard}>{t("common.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

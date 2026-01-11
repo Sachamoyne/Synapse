@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Edit, Pause, Play, Save, X } from "lucide-react";
 import {
-  listCards,
+  listCardsForDeckTree,
   deleteCard,
   updateCard,
   suspendCard,
@@ -31,7 +31,6 @@ import {
   setCardDueDate,
   forgetCard,
   setCardMarked,
-  getDeckAndAllChildren,
   formatInterval,
 } from "@/store/decks";
 import type { Card as CardType } from "@/lib/db";
@@ -117,13 +116,7 @@ export default function BrowseCardsPage() {
 
     try {
       const normalizedDeckId = String(deckId);
-      const deckIds = await getDeckAndAllChildren(normalizedDeckId);
-      const allCards: CardType[] = [];
-
-      for (const id of deckIds) {
-        const deckCards = await listCards(id);
-        allCards.push(...deckCards);
-      }
+      const allCards = await listCardsForDeckTree(normalizedDeckId);
 
       // Sort by creation date (newest first) - like Anki
       allCards.sort((a, b) =>

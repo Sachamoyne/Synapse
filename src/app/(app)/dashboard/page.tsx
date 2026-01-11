@@ -26,17 +26,16 @@ import {
   Legend,
 } from "recharts";
 import { Flame, BarChart3, Sparkles, Target, TrendingUp } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 type ReviewStats = Awaited<ReturnType<typeof getReviewStatsBetween>>;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function formatPercent(value: number): string {
   if (!Number.isFinite(value)) return "0%";
   return `${Math.round(value * 100)}%`;
 }
 
-function formatMinutes(minutes: number): string {
+function formatMinutes(minutes: number, t: (key: string) => string): string {
   if (minutes <= 0) return "0 min";
   if (minutes < 1) return "<1 min";
   if (minutes < 60) return `${Math.round(minutes)} min`;
@@ -52,20 +51,21 @@ function AdvancedStatsSection({
   masteredPct: number;
   overallTotals: { total: number; mastered: number };
 }) {
+  const { t, language } = useTranslation();
   const reviewsByDay = useReviewsByDay(30);
   const heatmapData = useHeatmapData(90);
   const cardDistribution = useCardDistribution();
 
   const formatChartDate = (dateStr: string): string => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("fr-FR", { month: "short", day: "numeric" });
+    return date.toLocaleDateString(language === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" });
   };
 
   const pieData = cardDistribution
     ? [
-        { name: "Nouvelles", value: cardDistribution.new, color: "#3b82f6" },
-        { name: "En apprentissage", value: cardDistribution.learning, color: "#f97316" },
-        { name: "Apprises", value: cardDistribution.learned, color: "#22c55e" },
+        { name: t("dashboard.new"), value: cardDistribution.new, color: "#3b82f6" },
+        { name: t("dashboard.learning"), value: cardDistribution.learning, color: "#f97316" },
+        { name: t("dashboard.learned"), value: cardDistribution.learned, color: "#22c55e" },
       ].filter((d) => d.value > 0)
     : [];
 
@@ -76,8 +76,8 @@ function AdvancedStatsSection({
     const percentage = totalCards > 0 && cardValue > 0
       ? ((cardValue / totalCards) * 100).toFixed(1)
       : "0.0";
-    const plural = cardValue > 1 ? "s" : "";
-    return `${value} : ${cardValue} carte${plural} (${percentage}%)`;
+    const cardWord = cardValue > 1 ? t("dashboard.cards") : t("dashboard.card");
+    return `${value} : ${cardValue} ${cardWord} (${percentage}%)`;
   };
 
   return (
@@ -88,7 +88,7 @@ function AdvancedStatsSection({
             <div className="rounded-lg bg-gradient-to-br from-accent/20 to-accent/10 p-2">
               <TrendingUp className="h-4 w-4 text-accent" />
             </div>
-            <CardTitle className="text-lg font-bold">Révisions par jour (30 jours)</CardTitle>
+            <CardTitle className="text-lg font-bold">{t("dashboard.reviewsPerDay")}</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -149,7 +149,7 @@ function AdvancedStatsSection({
             </ResponsiveContainer>
           ) : (
             <div className="h-40 flex items-center justify-center text-muted-foreground text-sm">
-              <div className="animate-pulse">Chargement...</div>
+              <div className="animate-pulse">{t("common.loading")}</div>
             </div>
           )}
         </CardContent>
@@ -158,20 +158,20 @@ function AdvancedStatsSection({
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader>
-            <CardTitle className="text-base font-bold">Progression globale</CardTitle>
+            <CardTitle className="text-base font-bold">{t("dashboard.globalProgress")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Cartes maîtrisées</p>
+              <p className="text-xs uppercase text-muted-foreground">{t("dashboard.masteredCards")}</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl font-bold text-primary">{formatPercent(masteredPct)}</p>
                 <p className="text-xs text-muted-foreground">{overallTotals.mastered} / {overallTotals.total}</p>
               </div>
             </div>
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Cartes apprises</p>
+              <p className="text-xs uppercase text-muted-foreground">{t("dashboard.learnedCards")}</p>
               <p className="text-2xl font-bold text-primary">{overallTotals.mastered}</p>
-              <p className="text-xs text-muted-foreground">Total à ce jour</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.totalToDate")}</p>
             </div>
           </CardContent>
         </Card>
@@ -182,7 +182,7 @@ function AdvancedStatsSection({
               <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle className="text-lg font-bold">Activité (90 derniers jours)</CardTitle>
+              <CardTitle className="text-lg font-bold">{t("dashboard.activity")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex items-center justify-center py-4">
@@ -190,7 +190,7 @@ function AdvancedStatsSection({
               <ActivityHeatmap data={heatmapData} days={90} />
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                <div className="animate-pulse">Chargement...</div>
+                <div className="animate-pulse">{t("common.loading")}</div>
               </div>
             )}
           </CardContent>
@@ -202,7 +202,7 @@ function AdvancedStatsSection({
               <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
                 <Target className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle className="text-lg font-bold">Répartition des cartes</CardTitle>
+              <CardTitle className="text-lg font-bold">{t("dashboard.cardDistribution")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-2 py-4">
@@ -240,12 +240,12 @@ function AdvancedStatsSection({
                 </div>
               ) : (
                 <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                  <div className="animate-pulse">Aucune carte</div>
+                  <div className="animate-pulse">{t("dashboard.noCards")}</div>
                 </div>
               )
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-                <div className="animate-pulse">Chargement...</div>
+                <div className="animate-pulse">{t("common.loading")}</div>
               </div>
             )}
           </CardContent>
@@ -256,6 +256,7 @@ function AdvancedStatsSection({
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const [streak, setStreak] = useState(0);
   const [todayStats, setTodayStats] = useState<ReviewStats | null>(null);
   const [overallTotals, setOverallTotals] = useState({ total: 0, mastered: 0 });
@@ -308,13 +309,13 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar title="Statistiques" />
+      <Topbar title={t("dashboard.title")} />
       <div className="flex-1 overflow-y-auto p-10 bg-gradient-to-b from-background to-muted/25">
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Votre progression</h1>
-              <p className="text-muted-foreground">Un aperçu rapide de votre activité.</p>
+              <h1 className="text-3xl font-extrabold tracking-tight">{t("dashboard.yourProgress")}</h1>
+              <p className="text-muted-foreground">{t("dashboard.progressSubtitle")}</p>
             </div>
           </div>
 
@@ -324,26 +325,26 @@ export default function DashboardPage() {
                 <div className="rounded-lg bg-primary/10 p-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                 </div>
-                <CardTitle className="text-lg font-bold">Résumé du jour</CardTitle>
+                <CardTitle className="text-lg font-bold">{t("dashboard.todaySummary")}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cartes revues</p>
-                  <p className="text-3xl font-extrabold text-primary">{loading ? "…" : studiedToday}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.cardsReviewed")}</p>
+                  <p className="text-3xl font-extrabold text-primary">{loading ? "..." : studiedToday}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Temps étudié</p>
-                  <p className="text-3xl font-extrabold text-primary">{loading ? "…" : formatMinutes(timeToday)}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.timeStudied")}</p>
+                  <p className="text-3xl font-extrabold text-primary">{loading ? "..." : formatMinutes(timeToday, t)}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Série</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.streak")}</p>
                     <Flame className="h-4 w-4 text-orange-500" />
                   </div>
-                  <p className="text-3xl font-extrabold text-orange-500">{loading ? "…" : streak}</p>
-                  <p className="text-xs text-muted-foreground">jours consécutifs</p>
+                  <p className="text-3xl font-extrabold text-orange-500">{loading ? "..." : streak}</p>
+                  <p className="text-xs text-muted-foreground">{t("dashboard.consecutiveDays")}</p>
                 </div>
               </div>
             </CardContent>

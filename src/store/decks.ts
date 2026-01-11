@@ -8,6 +8,7 @@ export {
   getDeckPath,
   listDecksWithPaths,
   listCards,
+  listCardsForDeckTree,
   listAllCards,
   setCardDueDate,
   forgetCard,

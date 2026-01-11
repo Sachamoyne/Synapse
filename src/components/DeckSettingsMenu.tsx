@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { renameDeck, deleteDeck } from "@/store/decks";
 import { Settings, Edit, Package, Download, Trash2 } from "lucide-react";
 import { DeckOptions } from "@/components/DeckOptions";
+import { useTranslation } from "@/i18n";
 
 interface DeckSettingsMenuProps {
   deckId: string;
@@ -29,6 +30,7 @@ interface DeckSettingsMenuProps {
 }
 
 export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMenuProps) {
+  const { t } = useTranslation();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -60,7 +62,6 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
   };
 
   const handleExport = async () => {
-    alert("Export functionality coming soon!");
     setExportDialogOpen(false);
   };
 
@@ -86,7 +87,7 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
             }}
           >
             <Edit className="mr-2 h-4 w-4" />
-            Renommer le deck
+            {t("deckSettings.rename")}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -95,7 +96,7 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
             }}
           >
             <Package className="mr-2 h-4 w-4" />
-            Options du paquet
+            {t("deckSettings.options")}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -104,7 +105,7 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
             }}
           >
             <Download className="mr-2 h-4 w-4" />
-            Exporter le paquet
+            {t("deckSettings.export")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -115,23 +116,22 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
             className="text-red-600 focus:text-red-600"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Supprimer le paquet
+            {t("deckSettings.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Renommer le deck</DialogTitle>
+            <DialogTitle>{t("deckSettings.renameTitle")}</DialogTitle>
             <DialogDescription>
-              Entrez le nouveau nom pour &quot;{deckName}&quot;.
+              {t("deckSettings.renameDesc", { deckName })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Input
-              placeholder="Nom du deck"
+              placeholder={t("decks.deckName")}
               value={newDeckName}
               onChange={(e) => setNewDeckName(e.target.value)}
               onKeyDown={(e) => {
@@ -143,56 +143,51 @@ export function DeckSettingsMenu({ deckId, deckName, onUpdate }: DeckSettingsMen
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
-              Annuler
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleRename}>Renommer</Button>
+            <Button onClick={handleRename}>{t("deckSettings.rename").split(" ")[0]}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer le deck</DialogTitle>
+            <DialogTitle>{t("deckSettings.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer &quot;{deckName}&quot; ? Cette action
-              supprimera également tous les sous-decks et toutes les cartes. Cette action
-              est irréversible.
+              {t("deckSettings.deleteDesc", { deckName })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              Supprimer
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Exporter le paquet</DialogTitle>
+            <DialogTitle>{t("deckSettings.exportTitle")}</DialogTitle>
             <DialogDescription>
-              L&apos;export au format Anki (.apkg) ou JSON sera disponible prochainement.
+              {t("deckSettings.exportDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
-              Fermer
+              {t("common.close")}
             </Button>
             <Button onClick={handleExport} disabled>
-              Exporter
+              {t("deckSettings.export")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Options Dialog */}
       <DeckOptions
         open={optionsDialogOpen}
         onOpenChange={setOptionsDialogOpen}

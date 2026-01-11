@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Plus, Upload, Menu } from "lucide-react";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useTranslation } from "@/i18n";
 
 interface TopbarProps {
   title: string;
@@ -21,6 +22,7 @@ export function Topbar({
   onImport,
   actions,
 }: TopbarProps) {
+  const { t } = useTranslation();
   const { toggle } = useSidebar();
 
   return (
@@ -42,13 +44,13 @@ export function Topbar({
         {showImport && onImport && (
           <Button variant="outline" onClick={onImport}>
             <Upload className="h-4 w-4" />
-            Import
+            {t("decks.import")}
           </Button>
         )}
         {showNewDeck && onNewDeck && (
           <Button onClick={onNewDeck}>
             <Plus className="h-4 w-4" />
-            New deck
+            {t("decks.newDeck")}
           </Button>
         )}
       </div>

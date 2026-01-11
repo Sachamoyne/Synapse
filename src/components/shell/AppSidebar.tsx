@@ -6,25 +6,25 @@ import { LayoutDashboard, BookOpen, Settings, List } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { APP_NAME } from "@/lib/brand";
 import { useSidebar } from "@/contexts/SidebarContext";
-
-const navItems = [
-  { href: "/decks", label: "Decks", icon: BookOpen },
-  { href: "/browse", label: "Browse", icon: List },
-  { href: "/dashboard", label: "Statistiques", icon: LayoutDashboard },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+import { useTranslation } from "@/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const { isOpen } = useSidebar();
+
+  const navItems = [
+    { href: "/decks", label: t("nav.decks"), icon: BookOpen },
+    { href: "/browse", label: t("nav.browse"), icon: List },
+    { href: "/dashboard", label: t("nav.statistics"), icon: LayoutDashboard },
+    { href: "/settings", label: t("nav.settings"), icon: Settings },
+  ];
 
   return (
     <div
       className={cn(
         "flex h-full flex-col border-r border-white/10 bg-slate-950/70 backdrop-blur-md transition-all duration-300 ease-in-out shrink-0",
-        // Clean layout: sidebar is either fully open (w-64) or completely hidden (w-0)
-        // When closed, it's taken out of the flex flow on mobile via fixed position
-        // On desktop, it stays in flow but with w-0 so no space is taken
         isOpen
           ? "w-64 relative"
           : "w-0 overflow-hidden"
@@ -66,6 +66,11 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* Language toggle at bottom */}
+      <div className="p-4 border-t border-white/10">
+        <LanguageToggle />
+      </div>
     </div>
   );
 }

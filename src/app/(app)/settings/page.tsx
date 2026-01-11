@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { getSettings, updateSettings, type Settings } from "@/store/settings";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
-// DEFAULT VALUES - ensure all inputs are controlled from first render
 const DEFAULT_SETTINGS: Partial<Settings> = {
   newCardsPerDay: 20,
   maxReviewsPerDay: 9999,
@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
 };
 
 export default function SettingsPage() {
-  // Initialize with defaults to prevent uncontrolled→controlled transitions
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<Partial<Settings>>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +31,6 @@ export default function SettingsPage() {
     async function loadSettings() {
       try {
         const loaded = await getSettings();
-        // Merge loaded settings with defaults to ensure no undefined values
         setSettings({
           ...DEFAULT_SETTINGS,
           ...loaded,
@@ -50,16 +49,11 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await updateSettings(settings);
-      console.log("✅ Settings saved successfully");
-      // Show success feedback (could add toast here)
+      console.log("Settings saved successfully");
     } catch (error) {
-      // DETAILED error logging to identify the real issue
-      console.error("❌ Error saving settings:", {
+      console.error("Error saving settings:", {
         error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
+        message: (error as Error)?.message,
         settingsPayload: settings,
       });
     } finally {
@@ -82,10 +76,10 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="Settings" />
+        <Topbar title={t("settings.title")} />
         <div className="flex-1 overflow-y-auto p-10">
           <div className="mx-auto max-w-4xl">
-            <p className="text-muted-foreground">Chargement...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         </div>
       </>
@@ -94,18 +88,17 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Topbar title="Settings" />
+      <Topbar title={t("settings.title")} />
       <div className="flex-1 overflow-y-auto p-10">
         <div className="mx-auto max-w-4xl space-y-8">
-          {/* Limites journalières */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Limites journalières</CardTitle>
+              <CardTitle className="text-lg">{t("settings.dailyLimits")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="newCardsPerDay">
-                  Nouvelles cartes par jour
+                  {t("settings.newCardsPerDay")}
                 </Label>
                 <Input
                   id="newCardsPerDay"
@@ -123,7 +116,7 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="maxReviewsPerDay">
-                  Révisions max par jour
+                  {t("settings.maxReviewsPerDay")}
                 </Label>
                 <Input
                   id="maxReviewsPerDay"
@@ -142,14 +135,13 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Étude */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Étude</CardTitle>
+              <CardTitle className="text-lg">{t("settings.study")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="reviewOrder">Ordre d&apos;affichage</Label>
+                <Label htmlFor="reviewOrder">{t("settings.displayOrder")}</Label>
                 <select
                   id="reviewOrder"
                   value={settings.reviewOrder ?? "mixed"}
@@ -164,15 +156,14 @@ export default function SettingsPage() {
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <option value="newFirst">Nouvelles d&apos;abord</option>
-                  <option value="oldFirst">Révisions d&apos;abord</option>
-                  <option value="mixed">Mélangé</option>
+                  <option value="newFirst">{t("settings.newFirst")}</option>
+                  <option value="oldFirst">{t("settings.reviewFirst")}</option>
+                  <option value="mixed">{t("settings.mixed")}</option>
                 </select>
               </div>
             </CardContent>
           </Card>
 
-          {/* Save button */}
           <div className="flex justify-between items-center">
             <Button
               variant="outline"
@@ -181,10 +172,10 @@ export default function SettingsPage() {
               className="hover:bg-red-50 hover:text-red-600 hover:border-red-200"
             >
               <LogOut className="h-4 w-4 mr-2" />
-              {loggingOut ? "Déconnexion..." : "Se déconnecter"}
+              {loggingOut ? t("auth.loggingOut") : t("auth.logout")}
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? t("settings.saving") : t("common.save")}
             </Button>
           </div>
         </div>

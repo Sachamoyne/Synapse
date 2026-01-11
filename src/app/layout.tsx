@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "@/styles/globals.css";
 import { APP_NAME, APP_TAGLINE, APP_DESCRIPTION } from "@/lib/brand";
+import { LanguageProvider } from "@/i18n";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -16,8 +17,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body className={geist.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={geist.className}>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

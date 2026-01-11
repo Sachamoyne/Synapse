@@ -27,6 +27,8 @@ let allDeckCountsCache: {
   };
   ts: number;
 } | null = null;
+const ankiCountsCache = new Map<string, { data: { due: Record<string, { new: number; learning: number; review: number }>; total: Record<string, number> }; ts: number }>();
+const deckCardsCache = new Map<string, { data: Card[]; ts: number }>();
 
 function isCacheFresh(ts: number, ttlMs: number): boolean {
   return Date.now() - ts < ttlMs;
@@ -41,6 +43,8 @@ function invalidateDeckCaches(): void {
 function invalidateCardCaches(): void {
   allCardsCache = null;
   allDeckCountsCache = null;
+  ankiCountsCache.clear();
+  deckCardsCache.clear();
 }
 
 function buildDeckPathMap(decks: Deck[]): Map<string, string> {
@@ -229,6 +233,28 @@ export async function listCards(deckId: string): Promise<Card[]> {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function listCardsForDeckTree(deckId: string): Promise<Card[]> {
+  const cached = deckCardsCache.get(deckId);
+  if (cached && isCacheFresh(cached.ts, CARDS_CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
+  const deckIds = await getDeckAndAllChildren(deckId);
+
+  const { data, error } = await supabase
+    .from("cards")
+    .select("*")
+    .in("deck_id", deckIds)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  const result = data || [];
+  deckCardsCache.set(deckId, { data: result, ts: Date.now() });
+  return result;
 }
 
 export async function listAllCards(): Promise<Card[]> {
@@ -994,6 +1020,12 @@ export async function getAnkiCountsForDecks(deckIds: string[]): Promise<{
   due: Record<string, { new: number; learning: number; review: number }>;
   total: Record<string, number>;
 }> {
+  const cacheKey = [...deckIds].sort().join("|");
+  const cached = ankiCountsCache.get(cacheKey);
+  if (cached && isCacheFresh(cached.ts, CARDS_CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
   const supabase = createClient();
 
   const { data, error } = await supabase.rpc("get_deck_anki_counts", {
@@ -1014,7 +1046,9 @@ export async function getAnkiCountsForDecks(deckIds: string[]): Promise<{
     total[row.deck_id] = row.total_cards ?? 0;
   }
 
-  return { due, total };
+  const result = { due, total };
+  ankiCountsCache.set(cacheKey, { data: result, ts: Date.now() });
+  return result;
 }
 
 export async function reviewCard(

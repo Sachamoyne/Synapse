@@ -36,7 +36,7 @@ export function ReversibleCard({
   useEffect(() => {
     setIsNormalOrientation(getReversibleOrientation());
     setShowBack(false);
-  }, [card.id]);
+  }, [card.id, card.state, card.due_at]);
 
   // Keyboard shortcuts for reversible card
   useEffect(() => {
