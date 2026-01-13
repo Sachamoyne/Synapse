@@ -53,36 +53,19 @@ export default function LandingPage() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: trimmed,
         password: crypto.randomUUID(),
       });
 
       if (error) {
+        console.error("waitlist signup error", error);
         const message = error.message.toLowerCase();
         if (message.includes("already") || message.includes("registered")) {
           setBetaError(t("landing.alreadyOnList"));
         } else {
           setBetaError(t("landing.genericError"));
         }
-        setBetaSuccess(false);
-        return;
-      }
-
-      if (!data.user) {
-        setBetaError(t("landing.genericError"));
-        setBetaSuccess(false);
-        return;
-      }
-
-      const { error: profileError } = await supabase.from("profiles").insert({
-        user_id: data.user.id,
-        status: "waitlist",
-      });
-
-      if (profileError) {
-        console.error("profiles insert error", profileError);
-        setBetaError(t("landing.genericError"));
         setBetaSuccess(false);
         return;
       }
