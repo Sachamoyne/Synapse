@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { Resend } from "npm:resend";
 
 serve(async (req) => {
   try {
@@ -9,58 +10,56 @@ serve(async (req) => {
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {
-      return new Response(JSON.stringify({ error: "Missing email" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid email" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const EMAIL_FROM = Deno.env.get("EMAIL_FROM");
+    const FROM_EMAIL = Deno.env.get("FROM_EMAIL");
 
-    if (!RESEND_API_KEY || !EMAIL_FROM) {
-      return new Response(JSON.stringify({ error: "Missing secrets" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (!RESEND_API_KEY || !FROM_EMAIL) {
+      return new Response(
+        JSON.stringify({ error: "Missing environment variables" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: [email],
-        subject: "You're on the waitlist ✅",
-        html: `
-          <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
-            <h2>You're on the waitlist</h2>
-            <p>Your email <b>${email}</b> has been confirmed.</p>
-            <p>We’ll contact you when Synapse launches.</p>
-          </div>
-        `,
-      }),
+    const resend = new Resend(RESEND_API_KEY);
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: "You're on the Synapse waiting list 🚀",
+      html: `
+        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+          <h2>Welcome to Synapse 👋</h2>
+          <p>Your email <strong>${email}</strong> has been successfully added to the waiting list.</p>
+          <p>We’ll notify you as soon as access opens.</p>
+          <p style="margin-top:24px;"><strong>— The Synapse team</strong></p>
+        </div>
+      `,
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      return new Response(JSON.stringify({ error: err }), {
-        status: 502,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    console.error(error);
+    return new Response(
+      JSON.stringify({ error: String(error) }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 });
