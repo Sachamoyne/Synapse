@@ -53,22 +53,46 @@ export default function LandingPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("beta_waitlist")
-        .insert({ email: trimmed });
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmed,
+        password: crypto.randomUUID(),
+      });
 
       if (error) {
-        console.error("beta_waitlist insert error", error);
-        if ((error as { code?: string }).code === "23505") {
+        const message = error.message.toLowerCase();
+        if (message.includes("already") || message.includes("registered")) {
           setBetaError(t("landing.alreadyOnList"));
         } else {
           setBetaError(t("landing.genericError"));
         }
         setBetaSuccess(false);
-      } else {
-        setBetaSuccess(true);
-        setBetaEmail("");
+        return;
       }
+
+      if (!data.user) {
+        setBetaError(t("landing.genericError"));
+        setBetaSuccess(false);
+        return;
+      }
+
+      const { error: profileError } = await supabase.from("profiles").insert({
+        user_id: data.user.id,
+        status: "waitlist",
+      });
+
+      if (profileError) {
+        console.error("profiles insert error", profileError);
+        setBetaError(t("landing.genericError"));
+        setBetaSuccess(false);
+        return;
+      }
+
+      setBetaSuccess(true);
+      setBetaEmail("");
+    } catch (error) {
+      console.error("waitlist signup error", error);
+      setBetaError(t("landing.genericError"));
+      setBetaSuccess(false);
     } finally {
       setBetaLoading(false);
     }

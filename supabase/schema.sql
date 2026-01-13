@@ -78,6 +78,12 @@ CREATE TABLE settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Profiles table (waitlist state)
+CREATE TABLE profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'waitlist'
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_decks_user_id ON decks(user_id);
 CREATE INDEX idx_decks_parent_deck_id ON decks(parent_deck_id);
@@ -99,6 +105,7 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE imports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generated_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for decks
 CREATE POLICY "Users can view their own decks"
@@ -196,6 +203,19 @@ CREATE POLICY "Users can create their own settings"
 
 CREATE POLICY "Users can update their own settings"
   ON settings FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- RLS Policies for profiles
+CREATE POLICY "Allow waitlist inserts"
+  ON profiles FOR INSERT
+  WITH CHECK (status = 'waitlist');
+
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own settings"

@@ -302,21 +302,18 @@ export interface Database {
           updated_at?: string
         }
       }
-      beta_waitlist: {
+      profiles: {
         Row: {
-          id: string
-          email: string
-          created_at: string
+          user_id: string
+          status: string
         }
         Insert: {
-          id?: string
-          email: string
-          created_at?: string
+          user_id: string
+          status?: string
         }
         Update: {
-          id?: string
-          email?: string
-          created_at?: string
+          user_id?: string
+          status?: string
         }
       }
     }

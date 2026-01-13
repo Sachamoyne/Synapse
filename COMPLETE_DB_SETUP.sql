@@ -23,6 +23,12 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Profiles table (waitlist)
+CREATE TABLE IF NOT EXISTS profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'waitlist'
+);
+
 -- 2. ACTIVER RLS SUR TOUTES LES TABLES
 -- ----------------------------------------------------------------------------
 ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
@@ -31,6 +37,7 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE imports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generated_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- 3. SUPPRIMER LES ANCIENNES POLICIES (pour réappliquer les bonnes)
 -- ----------------------------------------------------------------------------
@@ -63,6 +70,10 @@ DROP POLICY IF EXISTS "Users can view their own settings" ON settings;
 DROP POLICY IF EXISTS "Users can create their own settings" ON settings;
 DROP POLICY IF EXISTS "Users can update their own settings" ON settings;
 DROP POLICY IF EXISTS "Users can delete their own settings" ON settings;
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
+DROP POLICY IF EXISTS "Allow waitlist inserts" ON profiles;
 
 -- 4. CRÉER LES POLICIES RLS STRICTES
 -- ----------------------------------------------------------------------------
@@ -174,6 +185,20 @@ CREATE POLICY "Users can update their own settings"
 CREATE POLICY "Users can delete their own settings"
   ON settings FOR DELETE
   USING (auth.uid() = user_id);
+
+-- PROFILES policies
+CREATE POLICY "Allow waitlist inserts"
+  ON profiles FOR INSERT
+  WITH CHECK (status = 'waitlist');
+
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- 5. TRIGGER AUTO-CRÉATION SETTINGS
 -- ----------------------------------------------------------------------------

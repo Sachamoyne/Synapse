@@ -14,6 +14,10 @@ DROP POLICY IF EXISTS "Users can update their own settings" ON settings;
 DROP POLICY IF EXISTS "Users can create their own settings" ON settings;
 DROP POLICY IF EXISTS "Users can view their own settings" ON settings;
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
+DROP POLICY IF EXISTS "Allow waitlist inserts" ON profiles;
+
 DROP POLICY IF EXISTS "Users can delete their own generated_cards" ON generated_cards;
 DROP POLICY IF EXISTS "Users can update their own generated_cards" ON generated_cards;
 DROP POLICY IF EXISTS "Users can create their own generated_cards" ON generated_cards;
@@ -39,6 +43,7 @@ DROP POLICY IF EXISTS "Users can update their own decks" ON decks;
 DROP POLICY IF EXISTS "Users can create their own decks" ON decks;
 DROP POLICY IF EXISTS "Users can view their own decks" ON decks;
 
+DROP TABLE IF EXISTS profiles CASCADE;
 DROP TABLE IF EXISTS settings CASCADE;
 DROP TABLE IF EXISTS generated_cards CASCADE;
 DROP TABLE IF EXISTS imports CASCADE;
@@ -145,6 +150,12 @@ CREATE TABLE settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Profiles table (waitlist state)
+CREATE TABLE profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'waitlist'
+);
+
 -- ============================================================================
 -- STEP 3: Create indexes for performance
 -- ============================================================================
@@ -175,6 +186,7 @@ ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE imports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generated_cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- STEP 5: Create RLS Policies
@@ -276,6 +288,19 @@ CREATE POLICY "Users can create their own settings"
 
 CREATE POLICY "Users can update their own settings"
   ON settings FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Profiles policies
+CREATE POLICY "Allow waitlist inserts"
+  ON profiles FOR INSERT
+  WITH CHECK (status = 'waitlist');
+
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own settings"
