@@ -1,66 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Playfair_Display } from "next/font/google";
 import { APP_NAME } from "@/lib/brand";
-import { WAITLIST_ONLY } from "@/lib/features";
 import { useTranslation } from "@/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
-type PlanId = "starter" | "pro";
-
 export default function PricingPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (WAITLIST_ONLY) {
-      router.replace("/");
-    }
-  }, [router]);
-
-  const handleSubscribe = async (plan: PlanId) => {
-    setLoadingPlan(plan);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ plan }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push("/login?redirect=/pricing");
-          return;
-        }
-        throw new Error(data.error || "Failed to create checkout session");
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
-
-  if (WAITLIST_ONLY) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -98,12 +47,6 @@ export default function PricingPage() {
           <p className="mt-4 max-w-xl text-sm text-white/60">
             {t("pricing.subtitle")}
           </p>
-
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-              {error}
-            </div>
-          )}
 
           <div className="mt-12 grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {/* Free Plan */}
@@ -148,11 +91,10 @@ export default function PricingPage() {
                 <li>{t("pricing.starterFeature3")}</li>
               </ul>
               <button
-                onClick={() => handleSubscribe("starter")}
-                disabled={loadingPlan !== null}
-                className="mt-6 rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm text-white/70 transition hover:bg-white/5 disabled:opacity-50"
+                disabled
+                className="mt-6 cursor-not-allowed rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm text-white/50 opacity-60"
               >
-                {loadingPlan === "starter" ? "..." : t("pricing.subscribe")}
+                {t("pricing.subscribe")}
               </button>
             </div>
 
@@ -177,11 +119,10 @@ export default function PricingPage() {
                 <li>{t("pricing.proFeature3")}</li>
               </ul>
               <button
-                onClick={() => handleSubscribe("pro")}
-                disabled={loadingPlan !== null}
-                className="mt-6 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-white disabled:opacity-50"
+                disabled
+                className="mt-6 cursor-not-allowed rounded-full bg-white/60 px-4 py-2 text-sm font-medium text-slate-900 opacity-60"
               >
-                {loadingPlan === "pro" ? "..." : t("pricing.subscribe")}
+                {t("pricing.subscribe")}
               </button>
             </div>
 
