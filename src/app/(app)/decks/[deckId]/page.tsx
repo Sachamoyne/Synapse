@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { BookOpen, Trash2, Sparkles } from "lucide-react";
 import { getAnkiCountsForDecks, deleteDeck } from "@/store/decks";
 import { useTranslation } from "@/i18n";
+import { PaywallModal } from "@/components/PaywallModal";
+import { QuotaIndicator } from "@/components/QuotaIndicator";
 
 interface CardPreview {
   front: string;
@@ -99,6 +101,10 @@ export default function DeckOverviewPage() {
 
   const hasDueCards = (cardCounts.new + cardCounts.learning + cardCounts.review) > 0;
 
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<"free_plan" | "quota_exceeded">("free_plan");
+  const [paywallPlan, setPaywallPlan] = useState<"starter" | "pro" | undefined>(undefined);
+
   const canGenerateWithAI = aiText.trim().length > 0 && !aiLoading;
 
   const handleGenerateWithAI = async () => {
@@ -125,6 +131,13 @@ export default function DeckOverviewPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle quota errors
+        if (data.error === "QUOTA_FREE_PLAN" || data.error === "QUOTA_EXCEEDED") {
+          setPaywallReason(data.error === "QUOTA_FREE_PLAN" ? "free_plan" : "quota_exceeded");
+          setPaywallPlan(data.plan === "starter" ? "starter" : data.plan === "pro" ? "pro" : undefined);
+          setPaywallOpen(true);
+          return;
+        }
         setAiError(data.error || "Failed to generate cards");
         return;
       }
@@ -219,6 +232,9 @@ export default function DeckOverviewPage() {
       {/* AI card generation – scoped to this deck only */}
       <div className="pt-12 border-t max-w-3xl mx-auto">
         <div className="rounded-xl border bg-muted/30 p-6 space-y-5">
+          {/* Quota Indicator */}
+          <QuotaIndicator />
+
           {/* Header */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -311,6 +327,13 @@ Plus le texte est clair, meilleures seront les cartes.`}
           )}
         </div>
       </div>
+
+      <PaywallModal
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        reason={paywallReason}
+        plan={paywallPlan}
+      />
 
       <div className="pt-12 border-t flex justify-center">
         <Button

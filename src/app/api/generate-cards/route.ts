@@ -196,6 +196,140 @@ export async function POST(request: NextRequest) {
 
     console.log("[generate-cards] Deck ownership verified");
 
+    // Check AI quota before generating cards
+    // Use service role client to check quota
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json(
+        { error: "Supabase service key configuration is missing" },
+        { status: 500 }
+      );
+    }
+
+    const adminSupabase = createServiceClient(supabaseUrl, serviceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    // Get user profile to check quota
+    const { data: profile, error: profileError } = await adminSupabase
+      .from("profiles")
+      .select("plan, ai_cards_used_current_month, ai_cards_monthly_limit, ai_quota_reset_at")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError && profileError.code !== "PGRST116") {
+      // PGRST116 = no rows returned, which is OK (we'll create profile)
+      console.error("[generate-cards] Profile lookup failed:", profileError);
+      return NextResponse.json(
+        { error: "Failed to check quota", details: profileError.message },
+        { status: 500 }
+      );
+    }
+
+    // Create profile if it doesn't exist
+    let userProfile = profile;
+    if (!userProfile) {
+      const { data: newProfile, error: createError } = await adminSupabase
+        .from("profiles")
+        .insert({
+          user_id: user.id,
+          plan: "free",
+          ai_cards_used_current_month: 0,
+          ai_cards_monthly_limit: 0,
+          ai_quota_reset_at: new Date(
+            new Date().getFullYear(),
+            new Date().getMonth() + 1,
+            1
+          ).toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("[generate-cards] Failed to create profile:", createError);
+        return NextResponse.json(
+          { error: "Failed to initialize user profile" },
+          { status: 500 }
+        );
+      }
+      userProfile = newProfile;
+    }
+
+    // Check if quota needs reset (new month started)
+    const resetAt = new Date(userProfile.ai_quota_reset_at);
+    const now = new Date();
+    if (resetAt <= now) {
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const { error: resetError } = await adminSupabase
+        .from("profiles")
+        .update({
+          ai_cards_used_current_month: 0,
+          ai_quota_reset_at: nextMonth.toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (resetError) {
+        console.error("[generate-cards] Failed to reset quota:", resetError);
+      } else {
+        userProfile.ai_cards_used_current_month = 0;
+        userProfile.ai_quota_reset_at = nextMonth.toISOString();
+      }
+    }
+
+    // Check quota (estimate max 10 cards)
+    const estimatedCardCount = 10;
+    const plan = userProfile.plan || "free";
+    const used = userProfile.ai_cards_used_current_month || 0;
+    const limit = userProfile.ai_cards_monthly_limit || 0;
+
+    let canGenerate = false;
+    if (plan === "free") {
+      canGenerate = false;
+    } else if (used + estimatedCardCount <= limit) {
+      canGenerate = true;
+    } else {
+      canGenerate = false;
+    }
+
+    console.log("[generate-cards] Quota check:", { plan, used, limit, canGenerate });
+
+    // Check if user can generate cards
+    if (!canGenerate) {
+      if (plan === "free") {
+        return NextResponse.json(
+          {
+            error: "QUOTA_FREE_PLAN",
+            message: "AI flashcard generation is not available on the free plan. Please upgrade to Starter or Pro.",
+            plan: plan,
+          },
+          { status: 403 }
+        );
+      } else {
+        // Starter or Pro user who exceeded quota
+        const remaining = Math.max(0, limit - used);
+        return NextResponse.json(
+          {
+            error: "QUOTA_EXCEEDED",
+            message:
+              plan === "starter"
+                ? "You've reached your monthly limit of 800 AI cards. Upgrade to Pro for 2,500 cards/month."
+                : "You've reached your monthly limit of 2,500 AI cards. Your quota will reset at the beginning of next month.",
+            plan: plan,
+            used: used,
+            limit: limit,
+            remaining: remaining,
+            reset_at: userProfile.ai_quota_reset_at,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "OPENAI_API_KEY missing" },
@@ -243,8 +377,20 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[generate-cards] LLM call successful, cards count:", result.cards.length);
-    console.log("[generate-cards] SERVICE ROLE KEY EXISTS:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+    // Increment quota with actual card count
+    const actualCardCount = result.cards.length;
+    const { error: incrementError } = await adminSupabase
+      .from("profiles")
+      .update({
+        ai_cards_used_current_month: (userProfile.ai_cards_used_current_month || 0) + actualCardCount,
+      })
+      .eq("user_id", user.id);
+
+    if (incrementError) {
+      console.error("[generate-cards] Failed to increment quota:", incrementError);
+      // Don't fail the request, but log the error
+    }
 
     // Prepare cards for bulk insert
     const cardsToInsert = result.cards.map((card) => {
@@ -269,25 +415,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Bulk insert cards
-    // Use service role client here to avoid RLS issues while still
-    // enforcing user ownership via the explicit user_id we set above.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceKey) {
-      return NextResponse.json(
-        { error: "Supabase service key configuration is missing" },
-        { status: 500 }
-      );
-    }
-
-    const adminSupabase = createServiceClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
+    // adminSupabase is already created above for quota check
     console.log("[generate-cards] Inserting", cardsToInsert.length, "cards into database");
 
     const { data: insertedCards, error: insertError } = await adminSupabase

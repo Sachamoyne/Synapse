@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { WAITLIST_ONLY } from "@/lib/features";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,13 +26,6 @@ export default function LoginPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Preserve waitlist behavior: login is disabled in waitlist-only mode
-    if (WAITLIST_ONLY) {
-      router.replace("/");
-    }
-  }, [router]);
-
-  useEffect(() => {
     // If a valid session already exists, redirect away from /login
     // to the main authenticated dashboard.
     let cancelled = false;
@@ -54,18 +46,12 @@ export default function LoginPage() {
       }
     }
 
-    if (!WAITLIST_ONLY) {
-      void checkSession();
-    }
+    void checkSession();
 
     return () => {
       cancelled = true;
     };
   }, [router, supabase]);
-
-  if (WAITLIST_ONLY) {
-    return null;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
