@@ -53,7 +53,7 @@ export function PaywallModal({
             ) : isStarter ? (
               <div className="space-y-4">
                 <p>
-                  You've used all {limit} AI cards for this month. Your quota
+                  You&apos,ve used all {limit} AI cards for this month. Your quota
                   will reset at the beginning of next month.
                 </p>
                 <p>
@@ -64,7 +64,7 @@ export function PaywallModal({
             ) : (
               <div className="space-y-4">
                 <p>
-                  You've used all {limit} AI cards for this month. Your quota
+                  You&apos,ve used all {limit} AI cards for this month. Your quota
                   will reset at the beginning of next month.
                 </p>
               </div>
