@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Trash2, Sparkles } from "lucide-react";
+import { BookOpen, Trash2, Sparkles, FileText, Upload } from "lucide-react";
 import { getAnkiCountsForDecks, deleteDeck } from "@/store/decks";
 import { useTranslation } from "@/i18n";
 import { PaywallModal } from "@/components/PaywallModal";
@@ -42,6 +42,9 @@ export default function DeckOverviewPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<GenerateResponse | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function loadCounts() {
@@ -111,6 +114,111 @@ export default function DeckOverviewPage() {
   const canUseAI = userPlan?.canUseAI ?? false;
 
   const canGenerateWithAI = aiText.trim().length > 0 && !aiLoading && canUseAI;
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setPdfError("Invalid file type");
+      return;
+    }
+
+    // Validate file size (10 MB)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setPdfError("PDF too large");
+      return;
+    }
+
+    setPdfLoading(true);
+    setPdfError(null);
+    setAiError(null);
+    setAiResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("deck_id", String(deckId));
+      formData.append("language", "fr");
+
+      const response = await fetch("/api/generate-cards-from-pdf", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      // Safely parse response - handle non-JSON responses
+      let data: any;
+      try {
+        const responseText = await response.text();
+        
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("[handlePdfUpload] Non-JSON response:", {
+            status: response.status,
+            contentType,
+            text: responseText.substring(0, 500),
+          });
+          setPdfError(
+            `Server error: Expected JSON but got ${contentType || "unknown"}. Status: ${response.status}`
+          );
+          return;
+        }
+
+        // Parse JSON
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("[handlePdfUpload] Failed to parse JSON:", {
+            status: response.status,
+            text: responseText.substring(0, 500),
+            error: parseError,
+          });
+          setPdfError(
+            `Failed to parse server response: ${parseError instanceof Error ? parseError.message : "Invalid JSON"}`
+          );
+          return;
+        }
+      } catch (readError) {
+        console.error("[handlePdfUpload] Failed to read response:", readError);
+        setPdfError(
+          `Failed to read server response: ${readError instanceof Error ? readError.message : "Unknown error"}`
+        );
+        return;
+      }
+
+      if (!response.ok) {
+        // Handle quota errors
+        if (data.error === "QUOTA_FREE_PLAN" || data.error === "QUOTA_EXCEEDED") {
+          setPaywallReason(data.error === "QUOTA_FREE_PLAN" ? "free_plan" : "quota_exceeded");
+          setPaywallPlan(data.plan === "starter" ? "starter" : data.plan === "pro" ? "pro" : undefined);
+          setPaywallOpen(true);
+          return;
+        }
+        setPdfError(data.error || data.details || "Failed to generate cards from PDF");
+        return;
+      }
+
+      setAiResult(data);
+
+      // Trigger a refresh of deck counts
+      window.dispatchEvent(new Event("soma-counts-updated"));
+    } catch (error) {
+      console.error("Error generating cards from PDF:", error);
+      setPdfError(
+        error instanceof Error ? error.message : "Failed to process PDF"
+      );
+    } finally {
+      setPdfLoading(false);
+      // Reset file input
+      if (pdfInputRef.current) {
+        pdfInputRef.current.value = "";
+      }
+    }
+  };
 
   const handleGenerateWithAI = async () => {
     if (!canGenerateWithAI) return;
@@ -256,6 +364,41 @@ export default function DeckOverviewPage() {
 
           {/* Input */}
           <div className="space-y-4">
+            {/* PDF Upload Option */}
+            <div className="flex items-center gap-2">
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload}
+                disabled={!canUseAI || pdfLoading || aiLoading}
+                className="hidden"
+                id="pdf-upload"
+              />
+              <label
+                htmlFor="pdf-upload"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                  !canUseAI || pdfLoading || aiLoading
+                    ? "opacity-50 cursor-not-allowed border-muted bg-muted"
+                    : "border-primary/20 bg-primary/5 hover:bg-primary/10"
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {pdfLoading ? "Traitement du PDF..." : "Importer un PDF"}
+                </span>
+              </label>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-muted/30 px-2 text-muted-foreground">Ou</span>
+              </div>
+            </div>
+
             <Textarea
               value={aiText}
               onChange={(e) => setAiText(e.target.value)}
@@ -281,20 +424,22 @@ Plus le texte est clair, meilleures seront les cartes.`
             ) : (
               <Button
                 onClick={handleGenerateWithAI}
-                disabled={!canGenerateWithAI}
+                disabled={!canGenerateWithAI || pdfLoading}
                 className="w-full"
                 size="lg"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                {aiLoading ? "Génération en cours…" : "Générer des cartes pour ce paquet"}
+                {aiLoading || pdfLoading
+                  ? "Génération en cours…"
+                  : "Générer des cartes pour ce paquet"}
               </Button>
             )}
           </div>
 
           {/* Error state */}
-          {aiError && (
+          {(aiError || pdfError) && (
             <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-              {aiError}
+              {aiError || pdfError}
             </div>
           )}
 
