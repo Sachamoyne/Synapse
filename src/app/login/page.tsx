@@ -19,6 +19,7 @@ const playfair = Playfair_Display({ subsets: ["latin"] });
  * Ensures a profile exists for the user (idempotent).
  * Uses UPSERT to avoid errors if profile already exists.
  * Does NOT block authentication if profile creation fails.
+ * CRITICAL: Preserves existing 'founder' or 'admin' role - never overwrites privileged roles.
  */
 async function ensureProfile(
   supabase: ReturnType<typeof createClient>,
@@ -26,13 +27,27 @@ async function ensureProfile(
   userEmail: string | undefined
 ): Promise<void> {
   try {
+    // Check if profile already exists and has privileged role
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    // Preserve privileged roles (founder/admin) - never overwrite them
+    const privilegedRoles = ["founder", "admin"];
+    const existingRole = existingProfile?.role;
+    const shouldPreserveRole = existingRole && privilegedRoles.includes(existingRole);
+
     await supabase
       .from("profiles")
       .upsert(
         {
           id: userId,
           email: userEmail || "",
-          role: "user",
+          // CRITICAL: Only set role to "user" if profile doesn't exist or doesn't have privileged role
+          // This prevents overwriting "founder" or "admin" roles
+          ...(shouldPreserveRole ? { role: existingRole } : { role: "user" }),
           plan: "free",
         },
         {

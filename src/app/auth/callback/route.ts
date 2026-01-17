@@ -36,14 +36,28 @@ export async function GET(request: NextRequest) {
           },
         });
 
+        // Check if profile already exists and has privileged role
+        const { data: existingProfile } = await adminSupabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+
+        // Preserve privileged roles (founder/admin) - never overwrite them
+        const privilegedRoles = ["founder", "admin"];
+        const existingRole = existingProfile?.role;
+        const shouldPreserveRole = existingRole && privilegedRoles.includes(existingRole);
+
         // Create profile if it doesn't exist (idempotent)
+        // CRITICAL: Only set role to "user" if profile doesn't exist or doesn't have privileged role
+        // This prevents overwriting "founder" or "admin" roles
         await adminSupabase
           .from("profiles")
           .upsert(
             {
               id: data.user.id,
               email: data.user.email || "",
-              role: "user",
+              ...(shouldPreserveRole ? { role: existingRole } : { role: "user" }),
               plan: "free",
             },
             {

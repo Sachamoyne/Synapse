@@ -11,30 +11,6 @@ import { PaywallModal } from "@/components/PaywallModal";
 import { QuotaIndicator } from "@/components/QuotaIndicator";
 import { useUserPlan } from "@/hooks/useUserPlan";
 
-// Import dynamique pour éviter les erreurs SSR
-let pdfjsLib: any = null;
-
-if (typeof window !== "undefined") {
-  import("pdfjs-dist").then(async (pdfjs) => {
-    pdfjsLib = pdfjs;
-    // Set worker source to local file (copied by postinstall script)
-    const workerMjs = "/pdf.worker.min.mjs";
-    const workerJs = "/pdf.worker.min.js";
-    
-    try {
-      const response = await fetch(workerMjs, { method: "HEAD" });
-      if (response.ok) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerMjs;
-      } else {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerJs;
-      }
-    } catch {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerJs;
-    }
-    pdfjsLib.GlobalWorkerOptions.disableWorker = true;
-  });
-}
-
 interface CardPreview {
   front: string;
   back: string;
@@ -239,68 +215,30 @@ export default function DeckOverviewPage() {
       setGeneratedCards(null);
       setSelectedIndices(new Set());
 
-      // Trigger a refresh of deck counts
+      // Force immediate refresh of deck counts
+      invalidateCardCaches();
+      
+      // Refetch counts directly for immediate UI update
+      const normalizedDeckId = String(deckId);
+      try {
+        const { due, total } = await getAnkiCountsForDecks([normalizedDeckId]);
+        const counts = due[normalizedDeckId] || { new: 0, learning: 0, review: 0 };
+        setCardCounts(counts);
+        setTotalCards(total[normalizedDeckId] || 0);
+      } catch (error) {
+        console.error("[handleConfirmCards] Error refreshing counts:", error);
+      }
+
+      // Trigger event for other components (e.g., deck list)
       window.dispatchEvent(new Event("soma-counts-updated"));
+      
+      // Force Next.js App Router refresh to ensure all server components update
+      router.refresh();
     } catch (error) {
       console.error("[handleConfirmCards] CATCH error:", error);
       setAiError(error instanceof Error ? error.message : "Erreur lors de la confirmation");
     } finally {
       setConfirmLoading(false);
-    }
-  };
-
-  /**
-   * Extract text from PDF file using pdfjs-dist (client-side, Vercel-compatible)
-   */
-  const extractTextFromPDF = async (file: File): Promise<string> => {
-    if (!pdfjsLib) {
-      // Wait for pdfjs to load if not ready yet
-      await new Promise<void>((resolve) => {
-        const checkPdfjs = () => {
-          if (pdfjsLib) {
-            resolve();
-          } else {
-            setTimeout(checkPdfjs, 100);
-          }
-        };
-        checkPdfjs();
-      });
-    }
-
-    if (!pdfjsLib) {
-      throw new Error("PDF.js n'est pas chargé. Veuillez réessayer.");
-    }
-
-    try {
-      const buffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: buffer });
-      const pdf = await loadingTask.promise;
-      const numPages = pdf.numPages;
-      
-      let fullText = "";
-
-      // Extract text from all pages
-      for (let i = 1; i <= numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items.map((item: any) => item.str || "").join(" ");
-        fullText += (fullText ? "\n\n" : "") + pageText;
-      }
-
-      return fullText.trim();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Handle specific PDF errors
-      if (errorMessage.includes("password") || errorMessage.includes("encrypted")) {
-        throw new Error("Ce PDF est protégé par un mot de passe. Veuillez le déverrouiller avant de l'importer.");
-      }
-      
-      if (errorMessage.includes("Invalid PDF") || errorMessage.includes("invalid")) {
-        throw new Error("Ce fichier PDF semble corrompu ou mal formé. Veuillez essayer un autre fichier.");
-      }
-      
-      throw new Error(`Impossible d'extraire le texte du PDF: ${errorMessage}`);
     }
   };
 
@@ -325,32 +263,40 @@ export default function DeckOverviewPage() {
     resetPreview();
 
     try {
-      // Extract text from PDF client-side (Vercel-compatible)
-      console.log("[handlePdfUpload] Extracting text from PDF client-side...");
-      const extractedText = await extractTextFromPDF(file);
-      
-      if (!extractedText || extractedText.trim().length < 50) {
-        setPdfError("Ce PDF ne contient pas de texte sélectionnable. Il s'agit probablement d'un PDF scanné (image). Veuillez utiliser un PDF avec du texte.");
-        return;
-      }
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("deck_id", String(deckId));
+      formData.append("language", "fr");
 
-      console.log("[handlePdfUpload] Text extracted, length:", extractedText.length);
-
-      // Send extracted text to generate-cards API (same as AI text)
-      const response = await fetch("/api/generate-cards", {
+      const response = await fetch("/api/generate-cards-from-pdf", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          deck_id: String(deckId),
-          language: "fr",
-          text: extractedText.trim(),
-        }),
+        body: formData,
       });
 
-      const data = await response.json();
+      // Read response as text first to handle non-JSON responses gracefully
+      const responseText = await response.text();
+      const contentType = response.headers.get("content-type");
+
+      let data: any;
+      try {
+        // Check if response is JSON
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("[handlePdfUpload] Non-JSON response:", {
+            status: response.status,
+            contentType,
+            text: responseText.substring(0, 200),
+          });
+          setPdfError("Le serveur a renvoyé une réponse invalide. Veuillez réessayer.");
+          return;
+        }
+
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error("[handlePdfUpload] Failed to parse JSON response:", jsonError, "Response text:", responseText.substring(0, 200));
+        setPdfError("Impossible de lire la réponse du serveur. Veuillez réessayer.");
+        return;
+      }
 
       if (!response.ok) {
         // Handle quota errors
@@ -361,6 +307,23 @@ export default function DeckOverviewPage() {
           return;
         }
 
+        // Handle PDF-specific errors with user-friendly messages
+        if (data.code === "PDF_NO_TEXT" || data.code === "PDF_SCANNED") {
+          setPdfError("Ce PDF ne contient pas de texte sélectionnable. Il s'agit probablement d'un PDF scanné (image). Veuillez utiliser un PDF avec du texte.");
+          return;
+        }
+
+        if (data.code === "PDF_ENCRYPTED") {
+          setPdfError("Ce PDF est protégé par un mot de passe. Veuillez le déverrouiller avant de l'importer.");
+          return;
+        }
+
+        if (data.code === "PDF_INVALID") {
+          setPdfError("Ce fichier PDF semble corrompu ou mal formé. Veuillez essayer un autre fichier.");
+          return;
+        }
+
+        // Use the message from the API (already in French)
         const errorMessage = data.message || data.error || "Échec de la génération de cartes depuis le PDF";
         setPdfError(errorMessage);
         return;
