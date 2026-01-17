@@ -268,8 +268,14 @@ export default function DeckOverviewPage() {
       formData.append("deck_id", String(deckId));
       formData.append("language", "fr");
 
-      const response = await fetch("/api/generate-cards-from-pdf", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+      const backendKey = process.env.NEXT_PUBLIC_BACKEND_API_KEY || "";
+
+      const response = await fetch(`${backendUrl}/pdf/generate-cards`, {
         method: "POST",
+        headers: {
+          "x-soma-backend-key": backendKey,
+        },
         credentials: "include",
         body: formData,
       });

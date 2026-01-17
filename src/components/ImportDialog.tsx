@@ -154,8 +154,14 @@ export function ImportDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/import/anki", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+      const backendKey = process.env.NEXT_PUBLIC_BACKEND_API_KEY || "";
+
+      const response = await fetch(`${backendUrl}/anki/import`, {
         method: "POST",
+        headers: {
+          "x-soma-backend-key": backendKey,
+        },
         body: formData,
         credentials: "include",
       });
