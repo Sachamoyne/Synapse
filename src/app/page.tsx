@@ -142,6 +142,30 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <footer className="relative z-10 border-t border-white/10 bg-slate-950/90">
+          <div className="mx-auto max-w-6xl px-6 py-12">
+            <div className="flex flex-col items-center justify-between gap-8 sm:flex-row">
+              <div className="text-xs text-white/60">
+                © {new Date().getFullYear()} {APP_NAME}. Tous droits réservés.
+              </div>
+              <nav className="flex flex-wrap items-center justify-center gap-6 text-xs text-white/60">
+                <Link
+                  href="/confidentialite"
+                  className="transition hover:text-white/80"
+                >
+                  Politique de Confidentialité
+                </Link>
+                <Link
+                  href="/cgu-cgv"
+                  className="transition hover:text-white/80"
+                >
+                  CGU / CGV
+                </Link>
+              </nav>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
