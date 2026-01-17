@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -176,6 +178,12 @@ export default function LoginPage() {
         router.push("/decks");
         router.refresh();
       } else {
+        // SIGN UP: Check if terms are accepted
+        if (!acceptedTerms) {
+          setError("Vous devez accepter la politique de confidentialité et les CGU/CGV pour créer un compte.");
+          return;
+        }
+
         // SIGN UP: Create new account
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -309,13 +317,73 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {mode === "signup" && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                  <input
+                    type="checkbox"
+                    id="acceptTerms"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 text-primary focus:ring-2 focus:ring-white/40 cursor-pointer"
+                    required
+                  />
+                  <label htmlFor="acceptTerms" className="text-xs text-white/80 leading-relaxed cursor-pointer flex-1">
+                    J'accepte la{" "}
+                    <Link
+                      href="/confidentialite"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-white transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Politique de Confidentialité
+                    </Link>
+                    {" "}et les{" "}
+                    <Link
+                      href="/cgu-cgv"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-white transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      CGU/CGV
+                    </Link>
+                    {" "}de {APP_NAME}.
+                  </label>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full h-11 text-sm font-semibold bg-white text-slate-900 hover:bg-white/90"
-                disabled={loading}
+                disabled={loading || (mode === "signup" && !acceptedTerms)}
               >
                 {loading ? t("common.loading") : mode === "signin" ? t("auth.continue") : t("auth.createAccount")}
               </Button>
+
+              {mode === "signin" && (
+                <p className="text-xs text-white/50 text-center leading-relaxed">
+                  En continuant, vous acceptez notre{" "}
+                  <Link
+                    href="/confidentialite"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white/70 transition-colors"
+                  >
+                    Politique de Confidentialité
+                  </Link>
+                  {" "}et nos{" "}
+                  <Link
+                    href="/cgu-cgv"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-white/70 transition-colors"
+                  >
+                    CGU/CGV
+                  </Link>
+                  .
+                </p>
+              )}
 
               <Button
                 type="button"
@@ -349,6 +417,7 @@ export default function LoginPage() {
                     setMode(mode === "signin" ? "signup" : "signin");
                     setError(null);
                     setSuccess(null);
+                    setAcceptedTerms(false);
                   }}
                   className="transition hover:text-white"
                   disabled={loading}
