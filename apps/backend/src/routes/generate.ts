@@ -80,11 +80,11 @@ router.post("/cards", async (req: Request, res: Response) => {
     }
 
     // Generate cards preview
-    const result = await generateCardsPreview({
-      text: text.trim(),
-      deckId: deck_id,
-      userId,
-    });
+    const result = await generateCardsPreview(
+      text.trim(),
+      deck_id,
+      userId
+    );
 
     // Handle error responses
     if (!result.success) {
