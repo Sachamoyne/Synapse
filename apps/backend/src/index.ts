@@ -41,41 +41,30 @@ import generateRouter from "./routes/generate";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS: Whitelist production domains and localhost
-const allowedOrigins = [
-  "https://soma-edu.com",
-  "https://www.soma-edu.com",
-  "http://localhost:3000",
-  "http://localhost:3001",
-];
+// CORS configuration - MUST be before any auth middleware or routes
+const corsOrigin = process.env.CORS_ORIGIN;
 
-// CORS middleware - MUST be before any auth middleware or routes
+if (!corsOrigin) {
+  console.warn("[CORS] CORS_ORIGIN is not defined");
+}
+
+console.log("[CORS] Allowed origin:", corsOrigin);
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`[BACKEND] CORS blocked origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: corsOrigin,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    preflightContinue: false,
-    optionsSuccessStatus: 200,
   })
 );
 
-// Explicitly handle OPTIONS requests (preflight) for all routes
-// This MUST be before requireAuth to allow preflight without authentication
-app.options("*", cors());
+// Handle preflight requests explicitly
+app.options(
+  "*",
+  cors({
+    origin: corsOrigin,
+    credentials: true,
+  })
+);
 
 // Body parser for JSON (but NOT for multipart/form-data - multer handles that)
 app.use(express.json({ limit: "50mb" })); // Support large file uploads
