@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/BrandLogo";
 
@@ -11,10 +11,12 @@ import { BrandLogo } from "@/components/BrandLogo";
  * - FREE → redirect to /decks
  * - STARTER/PRO with pending subscription → trigger Stripe checkout
  * - STARTER/PRO with active subscription → redirect to /decks
+ * 
+ * NOTE: Supabase automatically exchanges the OTP code in the confirmation link
+ * before this component runs. We should NEVER call exchangeCodeForSession manually.
  */
 export default function OnboardingConfirmClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = createClient();
   const [status, setStatus] = useState<"loading" | "error" | "ready">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -22,19 +24,7 @@ export default function OnboardingConfirmClient() {
   useEffect(() => {
     async function handleConfirmation() {
       try {
-        // Exchange code for session if present (email confirmation redirect)
-        const code = searchParams.get("code");
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) {
-            console.error("[onboarding/confirm] Failed to exchange code:", exchangeError);
-            setError("Failed to confirm email. Please try again.");
-            setStatus("error");
-            return;
-          }
-        }
-
-        // Get current session
+        // Get current session (Supabase has already exchanged the OTP code automatically)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
           console.error("[onboarding/confirm] No session found:", sessionError);
@@ -184,7 +174,7 @@ export default function OnboardingConfirmClient() {
     }
 
     void handleConfirmation();
-  }, [router, searchParams, supabase]);
+  }, [router, supabase]);
 
   if (status === "error") {
     return (
