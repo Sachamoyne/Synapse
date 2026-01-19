@@ -143,8 +143,8 @@ router.post("/checkout", async (req: Request, res: Response) => {
         },
       ],
       allow_promotion_codes: true,
-      success_url: `${frontendUrl}/decks?checkout=success`,
-      cancel_url: `${frontendUrl}/onboarding?plan=${plan}&canceled=1`,
+      success_url: `${frontendUrl}/onboarding/success`,
+      cancel_url: `${frontendUrl}/pricing`,
       subscription_data: {
         metadata: {
           supabase_user_id: userId,

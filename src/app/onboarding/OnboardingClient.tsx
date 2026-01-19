@@ -27,6 +27,7 @@ export default function OnboardingClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [canceled, setCanceled] = useState(false);
 
@@ -56,6 +57,7 @@ export default function OnboardingClient() {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setCanceled(false);
 
     try {
@@ -68,6 +70,9 @@ export default function OnboardingClient() {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/onboarding/confirm`,
+        },
       });
 
       if (signUpError) {
@@ -82,14 +87,8 @@ export default function OnboardingClient() {
         return;
       }
 
-      // If email confirmation is required, we can't proceed to checkout
-      if (!user.email_confirmed_at) {
-        setError("Veuillez confirmer votre email avant de continuer. Vérifiez votre boîte de réception.");
-        return;
-      }
-
-      // Step 2: Create profile with pending subscription status
-      // The profile will be created with plan_name and subscription_status = "pending"
+      // Step 2: Create profile with pending subscription status (even if email not confirmed)
+      // This ensures we preserve the plan choice after email confirmation
       const { error: profileError } = await supabase
         .from("profiles")
         .upsert(
@@ -113,7 +112,13 @@ export default function OnboardingClient() {
         return;
       }
 
-      // Step 3: Initiate Stripe checkout with userId
+      // If email confirmation is required, redirect will happen via email link
+      if (!user.email_confirmed_at) {
+        setSuccess("Compte créé. Veuillez confirmer votre email pour continuer. Vous serez redirigé automatiquement vers le paiement après confirmation.");
+        return;
+      }
+
+      // Step 3: Initiate Stripe checkout with userId (only if email already confirmed)
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       if (!backendUrl) {
         setError("Configuration backend manquante. Veuillez réessayer plus tard.");
@@ -202,6 +207,12 @@ export default function OnboardingClient() {
               {error && (
                 <div className="rounded-2xl border border-red-500/50 bg-red-500/10 p-3">
                   <p className="text-sm text-red-200">{error}</p>
+                </div>
+              )}
+
+              {success && (
+                <div className="rounded-2xl border border-green-500/50 bg-green-500/10 p-3">
+                  <p className="text-sm text-green-200">{success}</p>
                 </div>
               )}
 
