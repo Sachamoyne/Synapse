@@ -36,6 +36,7 @@ interface PDFExtractionError {
 async function extractTextFromPdf(
   buffer: Buffer
 ): Promise<PDFExtractionResult | PDFExtractionError> {
+  const start = Date.now();
   console.log("[extractTextFromPdf] START - buffer info:", {
     bufferLength: buffer.length,
     isBuffer: Buffer.isBuffer(buffer),
@@ -86,10 +87,7 @@ async function extractTextFromPdf(
 
     console.log("[extractTextFromPdf] Calling getText()...");
     const result = await parser.getText();
-    console.log("[extractTextFromPdf] getText() returned:", {
-      resultType: typeof result,
-      resultKeys: result ? Object.keys(result) : "null",
-    });
+    console.log("[extractTextFromPdf] getText() returned");
 
     const pages = result?.total || 0;
     const rawText = result?.text || "";
@@ -97,7 +95,6 @@ async function extractTextFromPdf(
     console.log("[extractTextFromPdf] Extraction complete:", {
       pages,
       rawTextLength: rawText.length,
-      textPreview: rawText.substring(0, 100),
     });
 
     // Check if PDF has meaningful text (lowered threshold to 50)
@@ -172,6 +169,8 @@ async function extractTextFromPdf(
         // Ignore cleanup errors
       }
     }
+
+    console.log("[extractTextFromPdf] END in ms:", Date.now() - start);
   }
 }
 

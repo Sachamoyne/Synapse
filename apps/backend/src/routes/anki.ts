@@ -394,6 +394,7 @@ function parseCookies(cookieHeader: string | undefined): Map<string, string> {
 
 // POST /anki/import
 router.post("/import", upload.single("file"), async (req: Request, res: Response) => {
+  const importStart = Date.now();
   let tempPath: string | undefined;
   try {
     if (!req.file) {
@@ -434,9 +435,13 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
       },
     });
 
+    console.log("[ANKI IMPORT] START");
+
     // Read file as buffer (multer already provides Buffer)
     const buffer = req.file.buffer;
+    const zipStart = Date.now();
     const zip = new AdmZip(buffer);
+    console.log("[ANKI IMPORT] Zip loaded in ms:", Date.now() - zipStart);
 
     // Verify that the storage bucket exists before attempting upload
     console.log("[ANKI IMPORT] Verifying storage bucket...");
@@ -478,53 +483,75 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
     // Map of original filename → public URL
     const mediaUrlMap = new Map<string, string>();
 
-    for (const mediaFile of mediaFiles) {
-      try {
-        const fileName = mediaFile.entryName;
-        const fileData = mediaFile.getData();
+    const mediaUploadStart = Date.now();
+    // Limit concurrent uploads to avoid overloading storage
+    const CONCURRENCY = 5;
+    const uploadQueue = [...mediaFiles];
+    const workers: Promise<void>[] = [];
 
-        // Determine content type from extension
-        const ext = fileName.toLowerCase().match(/\.(\w+)$/)?.[1] || "png";
-        const contentTypeMap: Record<string, string> = {
-          png: "image/png",
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          gif: "image/gif",
-          svg: "image/svg+xml",
-          webp: "image/webp",
-          bmp: "image/bmp",
-          ico: "image/x-icon",
-        };
-        const contentType = contentTypeMap[ext] || "image/png";
+    const uploadNext = async () => {
+      while (uploadQueue.length > 0) {
+        const mediaFile = uploadQueue.shift();
+        if (!mediaFile) break;
+        try {
+          const fileName = mediaFile.entryName;
+          const fileData = mediaFile.getData();
 
-        // Upload to Supabase Storage
-        const storagePath = `${userId}/anki-media/${fileName}`;
+          // Determine content type from extension
+          const ext = fileName.toLowerCase().match(/\.(\w+)$/)?.[1] || "png";
+          const contentTypeMap: Record<string, string> = {
+            png: "image/png",
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            gif: "image/gif",
+            svg: "image/svg+xml",
+            webp: "image/webp",
+            bmp: "image/bmp",
+            ico: "image/x-icon",
+          };
+          const contentType = contentTypeMap[ext] || "image/png";
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("card-media")
-          .upload(storagePath, fileData, {
-            contentType,
-            upsert: true,
-          });
+          // Upload to Supabase Storage
+          const storagePath = `${userId}/anki-media/${fileName}`;
 
-        if (uploadError) {
-          console.error(`[ANKI IMPORT] ❌ Failed to upload ${fileName}:`, uploadError);
-          continue;
+          const { error: uploadError } = await supabase.storage
+            .from("card-media")
+            .upload(storagePath, fileData, {
+              contentType,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error(`[ANKI IMPORT] ❌ Failed to upload ${fileName}:`, uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage.from("card-media").getPublicUrl(storagePath);
+
+          if (urlData?.publicUrl) {
+            mediaUrlMap.set(fileName, urlData.publicUrl);
+          }
+        } catch (error) {
+          console.error("[ANKI IMPORT] Error processing media file:", error);
         }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage.from("card-media").getPublicUrl(storagePath);
-
-        if (urlData?.publicUrl) {
-          mediaUrlMap.set(fileName, urlData.publicUrl);
-          console.log(`[ANKI IMPORT] Uploaded ${fileName} → ${urlData.publicUrl}`);
-        }
-      } catch (error) {
-        console.error(`[ANKI IMPORT] Error processing media file ${mediaFile.entryName}:`, error);
       }
-    }
+    };
 
-    console.log(`[ANKI IMPORT] Successfully uploaded ${mediaUrlMap.size} / ${mediaFiles.length} media files`);
+    for (let i = 0; i < CONCURRENCY; i++) {
+      workers.push(uploadNext());
+    }
+    await Promise.all(workers);
+
+    console.log(
+      "[ANKI IMPORT] Media upload complete",
+      {
+        uploaded: mediaUrlMap.size,
+        total: mediaFiles.length,
+      },
+      "in ms:",
+      Date.now() - mediaUploadStart
+    );
 
     // Try different collection file names
     let collectionEntry = zip.getEntry("collection.anki21");
@@ -548,7 +575,9 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
     const collectionData = collectionEntry.getData();
     await fsPromises.writeFile(tempPath, collectionData);
 
+    const dbOpenStart = Date.now();
     const db = new Database(tempPath);
+    console.log("[ANKI IMPORT] Opened SQLite DB in ms:", Date.now() - dbOpenStart);
 
     try {
       // Debug: List all tables in the database
@@ -580,13 +609,16 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
       console.log("[ANKI IMPORT] Collection created:", collectionCreationDate.toISOString());
 
       // Get notes and cards
+      const notesQueryStart = Date.now();
       const notes = db.prepare("SELECT id, mid, flds, tags FROM notes").all() as Array<{
         id: number;
         mid: number;
         flds: string;
         tags: string;
       }>;
+      console.log("[ANKI IMPORT] Loaded notes in ms:", Date.now() - notesQueryStart, "count:", notes.length);
 
+      const cardsQueryStart = Date.now();
       const cards = db.prepare(`
         SELECT id, nid, did, type, queue, ivl, factor, reps, lapses, due
         FROM cards
@@ -602,13 +634,13 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
         lapses: number;
         due: number;
       }>;
-
-      console.log("[ANKI IMPORT] Read from Anki DB:", { notes: notes.length, cards: cards.length });
+      console.log("[ANKI IMPORT] Loaded cards in ms:", Date.now() - cardsQueryStart, "count:", cards.length);
 
       // Build deck cache
       const deckCache = new Map<string, string>();
       const ankiDeckIdToSomaDeckId = new Map<number, string>();
 
+      const deckCreateStart = Date.now();
       // Create decks with hierarchy
       for (const [deckId, deckData] of Object.entries(decksJson)) {
         const ankiDeckId = Number(deckId);
@@ -624,6 +656,7 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
         const somaDeckId = await getOrCreateDeck(supabase, userId, deckPath, deckCache);
         ankiDeckIdToSomaDeckId.set(ankiDeckId, somaDeckId);
       }
+      console.log("[ANKI IMPORT] Deck hierarchy created in ms:", Date.now() - deckCreateStart, "decks:", deckCache.size);
 
       // Build note lookup
       const noteMap = new Map(notes.map((n) => [n.id, n]));
@@ -636,6 +669,23 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
       let skippedDefaultDeck = 0;
       let failedInserts = 0;
       const now = new Date();
+
+      const cardRowsToInsert: Array<{
+        user_id: string;
+        deck_id: string;
+        front: string;
+        back: string;
+        state: string;
+        due_at: string;
+        interval_days: number;
+        ease: number;
+        reps: number;
+        lapses: number;
+        learning_step_index: number;
+        suspended: boolean;
+      }> = [];
+
+      const buildCardsStart = Date.now();
 
       for (const card of cards) {
         const note = noteMap.get(card.nid);
@@ -707,9 +757,8 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
           failedInserts++;
           continue;
         }
-
-        // Insert card
-        const { error: cardError } = await supabase.from("cards").insert({
+        // Collect card row for batch insert
+        cardRowsToInsert.push({
           user_id: userId,
           deck_id: somaDeckId,
           front,
@@ -723,14 +772,40 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
           learning_step_index: 0,
           suspended: isSuspended,
         });
+      }
 
-        if (!cardError) {
-          importedCount++;
+      console.log(
+        "[ANKI IMPORT] Prepared card rows in ms:",
+        Date.now() - buildCardsStart,
+        "rows:",
+        cardRowsToInsert.length
+      );
+
+      // Batch insert cards to minimize round-trips
+      const BATCH_SIZE = 200;
+      const insertStart = Date.now();
+
+      for (let i = 0; i < cardRowsToInsert.length; i += BATCH_SIZE) {
+        const batch = cardRowsToInsert.slice(i, i + BATCH_SIZE);
+        const { error: batchError } = await supabase.from("cards").insert(batch);
+        if (batchError) {
+          failedInserts += batch.length;
+          console.error("[ANKI IMPORT] Batch insert failed:", {
+            index: i,
+            size: batch.length,
+            error: batchError,
+          });
         } else {
-          failedInserts++;
-          console.error("[ANKI IMPORT] Card insert failed:", cardError);
+          importedCount += batch.length;
         }
       }
+
+      console.log(
+        "[ANKI IMPORT] Inserted cards in ms:",
+        Date.now() - insertStart,
+        "imported:",
+        importedCount
+      );
 
       console.log("[ANKI IMPORT] Import summary:", {
         total: cards.length,
@@ -740,6 +815,7 @@ router.post("/import", upload.single("file"), async (req: Request, res: Response
         skippedDefaultDeck,
         skippedEmptyFields,
         failedInserts,
+        durationMs: Date.now() - importStart,
       });
 
       // CRITICAL: Check if too many cards failed

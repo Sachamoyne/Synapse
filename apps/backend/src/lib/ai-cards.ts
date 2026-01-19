@@ -91,6 +91,7 @@ ${text}
 
 Réponds UNIQUEMENT avec le JSON strict conforme au schéma, sans aucun texte supplémentaire.`;
 
+  const llmStart = Date.now();
   const response = await fetch(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -108,10 +109,18 @@ Réponds UNIQUEMENT avec le JSON strict conforme au schéma, sans aucun texte su
     }),
   });
 
+  const llmDuration = Date.now() - llmStart;
+
   if (!response.ok) {
     const errorText = await response.text();
+    console.error("[LLM] API error", {
+      status: response.status,
+      durationMs: llmDuration,
+    });
     throw new Error(`LLM API error: ${response.status} - ${errorText}`);
   }
+
+  console.log("[LLM] Call successful in ms:", llmDuration);
 
   const data = await response.json() as {
     choices?: Array<{
