@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Playfair_Display } from "next/font/google";
@@ -21,10 +21,6 @@ export default function PricingClient() {
   const [currentPlan, setCurrentPlan] = useState<"free" | "starter" | "pro">("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [loadingCheckout, setLoadingCheckout] = useState<"starter" | "pro" | null>(null);
-  const autoCheckoutRan = useRef(false);
-
-  const requestedPlan = searchParams.get("plan");
-  const requestedCheckout = searchParams.get("checkout");
 
   useEffect(() => {
     let cancelled = false;
@@ -98,37 +94,11 @@ export default function PricingClient() {
     if (isAlreadyOnPlan) return;
 
     if (!userId) {
-      // Store plan in localStorage to resume checkout after email confirmation
-      localStorage.setItem("pending_plan", plan);
       router.push(`/signup?plan=${plan}`);
       return;
     }
     await startCheckout(plan);
   };
-
-  // Auto-resume checkout after signup/login: /pricing?plan=starter&checkout=1
-  useEffect(() => {
-    if (autoCheckoutRan.current) return;
-    if (!userId) return;
-    if (requestedCheckout !== "1") return;
-
-    // Get plan from URL or localStorage (for email confirmation flow)
-    const planFromUrl = requestedPlan;
-    const planFromStorage = localStorage.getItem("pending_plan") as "starter" | "pro" | null;
-    const planToUse = planFromUrl === "starter" || planFromUrl === "pro" 
-      ? planFromUrl 
-      : planFromStorage === "starter" || planFromStorage === "pro"
-        ? planFromStorage
-        : null;
-
-    if (planToUse !== "starter" && planToUse !== "pro") return;
-
-    autoCheckoutRan.current = true;
-    // Clear localStorage after reading the plan
-    localStorage.removeItem("pending_plan");
-    void startCheckout(planToUse);
-    // Note: we intentionally do not router.replace() here because we leave the page to Stripe.
-  }, [userId, requestedCheckout, requestedPlan]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -185,7 +155,7 @@ export default function PricingClient() {
                 <li>{t("pricing.freeFeature3")}</li>
               </ul>
               <Link
-                href="/login"
+                href="/signup?plan=free"
                 className="mt-6 block rounded-full border border-white/20 bg-transparent px-4 py-2 text-center text-sm text-white/70 transition hover:bg-white/5"
               >
                 {t("pricing.getStarted")}
@@ -210,7 +180,7 @@ export default function PricingClient() {
                 <li>{t("pricing.starterFeature3")}</li>
               </ul>
               <button
-                onClick={() => handleSubscribeClick("starter")}
+                onClick={() => router.push("/signup?plan=starter")}
                 disabled={Boolean(userId && currentPlan === "starter" && subscriptionStatus === "active") || loadingCheckout !== null}
                 className={`mt-6 rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm transition ${
                   userId && currentPlan === "starter" && subscriptionStatus === "active"
@@ -243,7 +213,7 @@ export default function PricingClient() {
                 <li>{t("pricing.proFeature3")}</li>
               </ul>
               <button
-                onClick={() => handleSubscribeClick("pro")}
+                onClick={() => router.push("/signup?plan=pro")}
                 disabled={Boolean(userId && currentPlan === "pro" && subscriptionStatus === "active") || loadingCheckout !== null}
                 className={`mt-6 rounded-full px-4 py-2 text-sm font-medium transition ${
                   userId && currentPlan === "pro" && subscriptionStatus === "active"

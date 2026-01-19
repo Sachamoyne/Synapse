@@ -70,17 +70,17 @@ export default function LoginClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
   useEffect(() => {
-    // Allow deep-linking to signup flow: /login?mode=signup&plan=starter
-    const desiredMode = searchParams.get("mode");
-    if (desiredMode === "signup") {
-      setMode("signup");
+    // Prevent direct access: /login must be reached from pricing.
+    const from = searchParams.get("from");
+    if (from !== "pricing") {
+      router.replace("/pricing");
+      router.refresh();
+      return;
     }
 
     // If a valid session already exists, redirect away from /login
@@ -94,31 +94,6 @@ export default function LoginClient() {
         } = await supabase.auth.getUser();
 
         if (!cancelled && user) {
-          const plan = searchParams.get("plan");
-          const next = searchParams.get("next");
-          // Check localStorage for pending plan (from email confirmation flow)
-          const pendingPlan = localStorage.getItem("pending_plan") as "starter" | "pro" | null;
-          
-          // Resume pricing → checkout flow if a plan was selected (URL or localStorage)
-          const planToUse = plan === "starter" || plan === "pro" 
-            ? plan 
-            : pendingPlan === "starter" || pendingPlan === "pro"
-              ? pendingPlan
-              : null;
-              
-          if (planToUse === "starter" || planToUse === "pro") {
-            // Clear localStorage before redirecting
-            if (pendingPlan) localStorage.removeItem("pending_plan");
-            router.replace(`/pricing?checkout=1`);
-            router.refresh();
-            return;
-          }
-          // Respect explicit next if provided
-          if (next && next.startsWith("/")) {
-            router.replace(next);
-            router.refresh();
-            return;
-          }
           // After login, main entry point is the deck list
           router.replace("/decks");
           router.refresh();
@@ -142,24 +117,9 @@ export default function LoginClient() {
 
     try {
       console.log("[LoginPage] Starting Google OAuth sign in...");
-      
-      const plan = searchParams.get("plan");
-      const next = searchParams.get("next");
-      // Check localStorage for pending plan (from email confirmation flow)
-      const pendingPlan = localStorage.getItem("pending_plan") as "starter" | "pro" | null;
-      const planToUse = plan === "starter" || plan === "pro" 
-        ? plan 
-        : pendingPlan === "starter" || pendingPlan === "pro"
-          ? pendingPlan
-          : null;
-      
+
       const qs = new URLSearchParams();
-      if (planToUse) {
-        // Store plan in localStorage if not already there (for OAuth flow)
-        if (!pendingPlan) localStorage.setItem("pending_plan", planToUse);
-        qs.set("next", `/pricing?checkout=1`);
-      } else if (plan) qs.set("plan", plan);
-      if (next && !planToUse) qs.set("next", next);
+      // Keep OAuth redirect simple: no plan selection, no checkout continuation here.
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -196,132 +156,36 @@ export default function LoginClient() {
     setSuccess(null);
 
     try {
-      if (mode === "signin") {
-        // SIGN IN: Attempt to sign in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      // SIGN IN only (existing accounts)
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (signInError) {
-          // Map Supabase error to user-friendly message
-          const authError = mapAuthError(signInError, "signin");
-          setError(authError.message);
-          return;
-        }
-
-        // Check if user is confirmed
-        const user = signInData.user;
-        if (!user) {
-          setError("Aucun compte trouvé avec cet email. Veuillez créer un compte.");
-          return;
-        }
-
-        // If email not confirmed, show specific message
-        if (!user.email_confirmed_at) {
-          setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
-          return;
-        }
-
-        // User is authenticated and confirmed - ensure profile exists
-        await ensureProfile(supabase, user.id, user.email);
-
-        const plan = searchParams.get("plan");
-        const next = searchParams.get("next");
-        // Check localStorage for pending plan (from email confirmation flow)
-        const pendingPlan = localStorage.getItem("pending_plan") as "starter" | "pro" | null;
-        
-        // Resume pricing → checkout flow if a plan was selected (URL or localStorage)
-        const planToUse = plan === "starter" || plan === "pro" 
-          ? plan 
-          : pendingPlan === "starter" || pendingPlan === "pro"
-            ? pendingPlan
-            : null;
-            
-        if (planToUse === "starter" || planToUse === "pro") {
-          // Clear localStorage before redirecting
-          if (pendingPlan) localStorage.removeItem("pending_plan");
-          router.push(`/pricing?checkout=1`);
-          router.refresh();
-          return;
-        }
-        if (next && next.startsWith("/")) {
-          router.push(next);
-          router.refresh();
-          return;
-        }
-        // Redirect to decks
-        router.push("/decks");
-        router.refresh();
-      } else {
-        // SIGN UP: Check if terms are accepted
-        if (!acceptedTerms) {
-          setError("Vous devez accepter la politique de confidentialité et les CGU/CGV pour créer un compte.");
-          return;
-        }
-
-        // SIGN UP: Create new account
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (signUpError) {
-          // Map Supabase error to user-friendly message
-          const authError = mapAuthError(signUpError, "signup");
-          setError(authError.message);
-          return;
-        }
-
-        // Check if user was created
-        const user = signUpData.user;
-        if (!user) {
-          setError("Impossible de créer le compte. Veuillez réessayer.");
-          return;
-        }
-
-        // Create profile (even if email not confirmed yet)
-        await ensureProfile(supabase, user.id, user.email);
-
-        // Check if email confirmation is required
-        if (!user.email_confirmed_at) {
-          // Show success message asking to confirm email
-          setSuccess("Compte créé avec succès. Veuillez confirmer votre email pour continuer. Vérifiez votre boîte de réception.");
-          // Don't redirect - user must confirm email first
-          return;
-        }
-
-        // Email already confirmed (shouldn't happen normally, but handle it)
-        const plan = searchParams.get("plan");
-        const next = searchParams.get("next");
-        // Check localStorage for pending plan (from email confirmation flow)
-        const pendingPlan = localStorage.getItem("pending_plan") as "starter" | "pro" | null;
-        
-        // Resume pricing → checkout flow if a plan was selected (URL or localStorage)
-        const planToUse = plan === "starter" || plan === "pro" 
-          ? plan 
-          : pendingPlan === "starter" || pendingPlan === "pro"
-            ? pendingPlan
-            : null;
-            
-        if (planToUse === "starter" || planToUse === "pro") {
-          // Clear localStorage before redirecting
-          if (pendingPlan) localStorage.removeItem("pending_plan");
-          router.push(`/pricing?checkout=1`);
-          router.refresh();
-          return;
-        }
-        if (next && next.startsWith("/")) {
-          router.push(next);
-          router.refresh();
-          return;
-        }
-        router.push("/decks");
-        router.refresh();
+      if (signInError) {
+        const authError = mapAuthError(signInError, "signin");
+        setError(authError.message);
+        return;
       }
+
+      const user = signInData.user;
+      if (!user) {
+        setError("Aucun compte trouvé avec cet email.");
+        return;
+      }
+
+      if (!user.email_confirmed_at) {
+        setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
+        return;
+      }
+
+      await ensureProfile(supabase, user.id, user.email);
+
+      router.push("/decks");
+      router.refresh();
     } catch (err: any) {
       // Fallback for unexpected errors
-      const authError = mapAuthError(err, mode);
+      const authError = mapAuthError(err, "signin");
       setError(authError.message || t("auth.errorOccurred"));
     } finally {
       setLoading(false);
@@ -456,34 +320,32 @@ export default function LoginClient() {
               <Button
                 type="submit"
                 className="w-full h-11 text-sm font-semibold bg-white text-slate-900 hover:bg-white/90"
-                disabled={loading || (mode === "signup" && !acceptedTerms)}
+                disabled={loading}
               >
-                {loading ? t("common.loading") : mode === "signin" ? t("auth.continue") : t("auth.createAccount")}
+                {loading ? t("common.loading") : t("auth.continue")}
               </Button>
 
-              {mode === "signin" && (
-                <p className="text-xs text-white/50 text-center leading-relaxed">
-                  En continuant, vous acceptez notre{" "}
-                  <Link
-                    href="/confidentialite"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-white/70 transition-colors"
-                  >
-                    Politique de Confidentialité
-                  </Link>
-                  {" "}et nos{" "}
-                  <Link
-                    href="/cgu-cgv"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-white/70 transition-colors"
-                  >
-                    CGU/CGV
-                  </Link>
-                  .
-                </p>
-              )}
+              <p className="text-xs text-white/50 text-center leading-relaxed">
+                En continuant, vous acceptez notre{" "}
+                <Link
+                  href="/confidentialite"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white/70 transition-colors"
+                >
+                  Politique de Confidentialité
+                </Link>
+                {" "}et nos{" "}
+                <Link
+                  href="/cgu-cgv"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white/70 transition-colors"
+                >
+                  CGU/CGV
+                </Link>
+                .
+              </p>
 
               <Button
                 type="button"
@@ -511,19 +373,9 @@ export default function LoginClient() {
               </Button>
 
               <div className="text-center text-xs text-white/60">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode(mode === "signin" ? "signup" : "signin");
-                    setError(null);
-                    setSuccess(null);
-                    setAcceptedTerms(false);
-                  }}
-                  className="transition hover:text-white"
-                  disabled={loading}
-                >
-                  {mode === "signin" ? t("auth.needAccount") : t("auth.haveAccount")}
-                </button>
+                <Link href="/pricing" className="transition hover:text-white">
+                  Voir les plans
+                </Link>
               </div>
             </form>
           </div>
