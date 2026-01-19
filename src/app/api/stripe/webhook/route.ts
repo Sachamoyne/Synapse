@@ -30,9 +30,29 @@ async function updateSubscription(
   const supabase = await getServiceSupabase();
   const plan = PLANS[planName];
 
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer?.id;
+
+  const price =
+    subscription.items.data[0]?.price ||
+    (subscription.items.data.length > 0 ? subscription.items.data[0].price : null);
+
+  console.log("[webhook] updateSubscription payload", {
+    userId,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscription.id,
+    status: subscription.status,
+    currentPeriodEnd: subscription.current_period_end,
+    priceId: price?.id,
+    planName,
+  });
+
   const { error } = await supabase
     .from("profiles")
     .update({
+      stripe_customer_id: customerId ?? null,
       subscription_id: subscription.id,
       subscription_status: subscription.status,
       plan_name: planName,
@@ -51,6 +71,8 @@ async function updateSubscription(
 
 async function cancelSubscription(userId: string) {
   const supabase = await getServiceSupabase();
+
+  console.log("[webhook] cancelSubscription for user:", userId);
 
   const { error } = await supabase
     .from("profiles")
