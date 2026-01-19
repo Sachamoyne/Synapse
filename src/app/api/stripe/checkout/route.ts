@@ -1,22 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getStripePriceId } from "@/lib/stripe";
 
 const requestSchema = z.object({
   plan: z.enum(["starter", "pro"]),
 });
-
-// Price ID getters by plan
-function getPriceId(plan: "starter" | "pro"): string | undefined {
-  if (plan === "starter") {
-    return process.env.STRIPE_STARTER_PRICE_ID;
-  }
-  if (plan === "pro") {
-    return process.env.STRIPE_PRO_PRICE_ID;
-  }
-  return undefined;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,12 +23,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get price ID for the plan
-    const priceId = getPriceId(plan);
-
-    if (!priceId) {
+    // Get price ID for the plan (throws if missing)
+    let priceId: string;
+    try {
+      priceId = getStripePriceId(plan);
+    } catch (error) {
+      console.error(`[stripe/checkout] Missing price_id for plan ${plan}:`, error);
       return NextResponse.json(
-        { error: "Price ID not configured for this plan" },
+        { error: error instanceof Error ? error.message : "Price ID not configured for this plan" },
         { status: 500 }
       );
     }

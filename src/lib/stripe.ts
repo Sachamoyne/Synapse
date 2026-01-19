@@ -28,6 +28,25 @@ export function getStripe(): Stripe {
   return stripeInstance;
 }
 
+/**
+ * Explicit mapping of plan names to Stripe Price IDs.
+ * Throws an error if a price_id is missing for a paid plan.
+ */
+export function getStripePriceId(plan: "starter" | "pro"): string {
+  const priceIdMap: Record<"starter" | "pro", string | undefined> = {
+    starter: process.env.SOMA_STARTER_PRICE_ID || process.env.STRIPE_STARTER_PRICE_ID,
+    pro: process.env.SOMA_PRO_PRICE_ID || process.env.STRIPE_PRO_PRICE_ID,
+  };
+
+  const priceId = priceIdMap[plan];
+
+  if (!priceId) {
+    throw new Error(`Missing Stripe price_id for plan: ${plan}. Please set SOMA_${plan.toUpperCase()}_PRICE_ID or STRIPE_${plan.toUpperCase()}_PRICE_ID environment variable.`);
+  }
+
+  return priceId;
+}
+
 // Plan configuration
 export const PLANS = {
   free: {
@@ -38,13 +57,13 @@ export const PLANS = {
   },
   starter: {
     name: "Starter",
-    priceId: () => process.env.STRIPE_STARTER_PRICE_ID,
+    priceId: () => process.env.SOMA_STARTER_PRICE_ID || process.env.STRIPE_STARTER_PRICE_ID,
     aiCardsPerMonth: 800,
     priceEuros: 8,
   },
   pro: {
     name: "Pro",
-    priceId: () => process.env.STRIPE_PRO_PRICE_ID,
+    priceId: () => process.env.SOMA_PRO_PRICE_ID || process.env.STRIPE_PRO_PRICE_ID,
     aiCardsPerMonth: 2500,
     priceEuros: 15,
   },
