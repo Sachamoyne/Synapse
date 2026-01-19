@@ -93,10 +93,7 @@ export default function PricingClient() {
     const isAlreadyOnPlan = userId && currentPlan === plan && subscriptionStatus === "active";
     if (isAlreadyOnPlan) return;
 
-    if (!userId) {
-      router.push(`/signup?plan=${plan}`);
-      return;
-    }
+    // For Starter/Pro: always go through Stripe checkout first (payment before signup)
     await startCheckout(plan);
   };
 
@@ -180,7 +177,7 @@ export default function PricingClient() {
                 <li>{t("pricing.starterFeature3")}</li>
               </ul>
               <button
-                onClick={() => router.push("/signup?plan=starter")}
+                onClick={() => handleSubscribeClick("starter")}
                 disabled={Boolean(userId && currentPlan === "starter" && subscriptionStatus === "active") || loadingCheckout !== null}
                 className={`mt-6 rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm transition ${
                   userId && currentPlan === "starter" && subscriptionStatus === "active"
@@ -213,7 +210,7 @@ export default function PricingClient() {
                 <li>{t("pricing.proFeature3")}</li>
               </ul>
               <button
-                onClick={() => router.push("/signup?plan=pro")}
+                onClick={() => handleSubscribeClick("pro")}
                 disabled={Boolean(userId && currentPlan === "pro" && subscriptionStatus === "active") || loadingCheckout !== null}
                 className={`mt-6 rounded-full px-4 py-2 text-sm font-medium transition ${
                   userId && currentPlan === "pro" && subscriptionStatus === "active"

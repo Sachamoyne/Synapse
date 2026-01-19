@@ -30,37 +30,62 @@ export default function SignupClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [verifyingSession, setVerifyingSession] = useState(false);
+  const [paidPlan, setPaidPlan] = useState<"starter" | "pro" | null>(null);
 
   const planParam = searchParams.get("plan");
+  const paidParam = searchParams.get("paid");
+  const sessionId = searchParams.get("session_id");
+
   const plan =
     planParam === "free" || planParam === "starter" || planParam === "pro"
       ? planParam
       : null;
 
+  // Verify Stripe session if paid=1
   useEffect(() => {
-    // Enforce plan choice before account creation
-    if (!plan) {
+    if (paidParam === "1" && sessionId) {
+      setVerifyingSession(true);
+      fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok || !data.valid) {
+            router.replace("/pricing");
+            router.refresh();
+            return;
+          }
+          const verifiedPlan = data.plan as "starter" | "pro" | null;
+          if (verifiedPlan === "starter" || verifiedPlan === "pro") {
+            setPaidPlan(verifiedPlan);
+            if (data.email) {
+              setEmail(data.email); // Pre-fill email from Stripe
+            }
+          } else {
+            router.replace("/pricing");
+            router.refresh();
+          }
+        })
+        .catch((err) => {
+          console.error("[signup] Failed to verify session:", err);
+          router.replace("/pricing");
+          router.refresh();
+        })
+        .finally(() => {
+          setVerifyingSession(false);
+        });
+    } else if (!plan && paidParam !== "1") {
+      // Enforce plan choice before account creation (for free plan)
       router.replace("/pricing");
       router.refresh();
     }
-  }, [plan, router]);
-
-  async function startCheckout(paidPlan: "starter" | "pro") {
-    const response = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan: paidPlan }),
-    });
-    const data = (await response.json()) as { url?: string; error?: string };
-    if (!response.ok || !data.url) {
-      throw new Error(data.error || `Checkout failed (HTTP ${response.status})`);
-    }
-    window.location.href = data.url;
-  }
+  }, [plan, paidParam, sessionId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plan) return;
+
+    // Must have either plan=free OR paid=1 with verified session
+    const effectivePlan = plan === "free" ? "free" : paidPlan;
+    if (!effectivePlan) return;
 
     setLoading(true);
     setError(null);
@@ -89,19 +114,34 @@ export default function SignupClient() {
         return;
       }
 
-      // If email confirmation is required, we can't proceed to checkout without a session.
+      // If email confirmation is required
       if (!user.email_confirmed_at) {
         setSuccess("Compte créé. Veuillez confirmer votre email pour continuer.");
         return;
       }
 
-      if (plan === "free") {
-        router.replace("/decks");
-        router.refresh();
-        return;
+      // For paid plans, associate the Stripe session with the new user account
+      if (paidPlan && sessionId) {
+        try {
+          const associateResponse = await fetch("/api/stripe/associate-session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!associateResponse.ok) {
+            console.error("[signup] Failed to associate session:", await associateResponse.text());
+            // Continue anyway - webhook might process it later
+          }
+        } catch (err) {
+          console.error("[signup] Error associating session:", err);
+          // Continue anyway - webhook might process it later
+        }
       }
 
-      await startCheckout(plan);
+      // After signup, redirect to app
+      router.replace("/decks");
+      router.refresh();
     } catch (err: any) {
       const authError = mapAuthError(err, "signup");
       setError(authError.message || "Erreur lors de la création du compte.");
@@ -110,7 +150,20 @@ export default function SignupClient() {
     }
   };
 
-  if (!plan) return null;
+  // Show loading while verifying session
+  if (paidParam === "1" && verifyingSession) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-white/60">Vérification du paiement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Must have either plan=free OR paid=1 with verified session
+  const effectivePlan = plan === "free" ? "free" : paidPlan;
+  if (!effectivePlan) return null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -138,7 +191,7 @@ export default function SignupClient() {
                   {t("auth.createAccount", { appName: APP_NAME })}
                 </h1>
                 <p className="mt-2 text-xs text-white/60">
-                  Plan choisi : <span className="text-white/80 font-medium">{plan}</span>
+                  Plan choisi : <span className="text-white/80 font-medium">{effectivePlan}</span>
                 </p>
               </div>
             </div>

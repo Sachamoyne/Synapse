@@ -12,17 +12,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { plan } = requestSchema.parse(body);
 
-    // Authenticate user
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     // Get price ID for the plan (throws if missing)
     let priceId: string;
     try {
@@ -41,35 +30,49 @@ export async function POST(request: NextRequest) {
     // Initialize Stripe (lazy, inside request handler)
     const stripe = getStripe();
 
-    // Check if user already has a Stripe customer ID
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id")
-      .eq("id", user.id)
-      .single();
+    // Try to authenticate user (optional - for existing users upgrading)
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    let customerId = profile?.stripe_customer_id;
+    let customerId: string | undefined;
+    let metadata: Record<string, string> = {
+      plan_name: plan,
+    };
 
-    // Create Stripe customer if needed
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          supabase_user_id: user.id,
-        },
-      });
-      customerId = customer.id;
-
-      // Save customer ID to profile
-      await supabase
+    if (user) {
+      // Existing user: use their customer ID or create one
+      const { data: profile } = await supabase
         .from("profiles")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", user.id);
+        .select("stripe_customer_id")
+        .eq("id", user.id)
+        .single();
+
+      customerId = profile?.stripe_customer_id;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            supabase_user_id: user.id,
+          },
+        });
+        customerId = customer.id;
+
+        await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", user.id);
+      }
+
+      metadata.supabase_user_id = user.id;
     }
+    // If no user, Stripe will collect email and create customer automatically
 
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      ...(customerId ? { customer: customerId } : {}),
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [
@@ -78,18 +81,12 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${origin}/decks?checkout=success`,
-      cancel_url: `${origin}/pricing?checkout=cancelled`,
+      success_url: `${origin}/signup?paid=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pricing`,
       subscription_data: {
-        metadata: {
-          supabase_user_id: user.id,
-          plan_name: plan,
-        },
+        metadata,
       },
-      metadata: {
-        supabase_user_id: user.id,
-        plan_name: plan,
-      },
+      metadata,
     });
 
     if (!session.url) {
