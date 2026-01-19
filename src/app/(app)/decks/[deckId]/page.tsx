@@ -11,6 +11,7 @@ import { PaywallModal } from "@/components/PaywallModal";
 import { QuotaIndicator } from "@/components/QuotaIndicator";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { createClient } from "@/lib/supabase/client";
+import { BACKEND_URL } from "@/lib/backend";
 
 interface CardPreview {
   front: string;
@@ -189,9 +190,7 @@ export default function DeckOverviewPage() {
         selectedCards: selectedCards.map(c => ({ front: c.front.substring(0, 50) })),
       });
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-      const response = await fetch(`${apiUrl}/generate/confirm`, {
+      const response = await fetch(`${BACKEND_URL}/generate/confirm`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -294,9 +293,7 @@ export default function DeckOverviewPage() {
       formData.append("deck_id", String(deckId));
       formData.append("language", "fr");
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-      const response = await fetch(`${apiUrl}/pdf/generate-cards`, {
+      const response = await fetch(`${BACKEND_URL}/pdf/generate-cards`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -397,9 +394,7 @@ export default function DeckOverviewPage() {
         return;
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-      const response = await fetch(`${apiUrl}/generate/cards`, {
+      const response = await fetch(`${BACKEND_URL}/generate/cards`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

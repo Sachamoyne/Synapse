@@ -20,6 +20,7 @@ import { createImport, generateCards, persistGeneratedCards, type GenerateCardsR
 import { GeneratedCardRow } from "@/components/GeneratedCardRow";
 import { useUserPlan } from "@/hooks/useUserPlan";
 import { createClient } from "@/lib/supabase/client";
+import { BACKEND_URL } from "@/lib/backend";
 
 // Import dynamique pour éviter les erreurs SSR
 let pdfjsLib: any = null;
@@ -165,9 +166,7 @@ export function ImportDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-      const response = await fetch(`${apiUrl}/anki/import`, {
+      const response = await fetch(`${BACKEND_URL}/anki/import`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,

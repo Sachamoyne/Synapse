@@ -2,6 +2,7 @@
 // These functions work with the imports table in Supabase
 
 import { createClient } from "@/lib/supabase/client";
+import { BACKEND_URL } from "@/lib/backend";
 
 export interface CardProposal {
   front: string;
@@ -255,9 +256,7 @@ export async function generateCards(
       throw new Error("No Supabase session. Please log in again.");
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-    const response = await fetch(`${apiUrl}/generate/cards`, {
+    const response = await fetch(`${BACKEND_URL}/generate/cards`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
