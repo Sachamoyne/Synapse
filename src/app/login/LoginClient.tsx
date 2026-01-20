@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, CheckCircle, Mail } from "lucide-react";
+import { Eye, EyeOff, CheckCircle } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Playfair_Display } from "next/font/google";
@@ -17,25 +17,8 @@ import { mapAuthError } from "@/lib/auth-errors";
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
 type ProfileSnapshot = {
-  onboarding_status: string | null;
-  plan_name: string | null;
-  plan: string | null;
   subscription_status: string | null;
 };
-
-function isPaidPlan(profile: ProfileSnapshot | null | undefined): boolean {
-  return profile?.plan_name === "starter" || profile?.plan_name === "pro" ||
-    profile?.plan === "starter" || profile?.plan === "pro";
-}
-
-function isStripeForbidden(profile: ProfileSnapshot | null | undefined): boolean {
-  return profile?.subscription_status === "active";
-}
-
-function shouldRedirectToStripe(profile: ProfileSnapshot | null | undefined): boolean {
-  if (!profile) return false;
-  return profile.onboarding_status === "pending_payment" && profile.subscription_status !== "active";
-}
 
 export default function LoginClient() {
   const { t } = useTranslation();
@@ -45,7 +28,6 @@ export default function LoginClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [paidEmailPending, setPaidEmailPending] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -72,75 +54,50 @@ export default function LoginClient() {
         }
 
         if (!cancelled && user) {
-          // Get profile to check onboarding status and plan
+          // Get profile - subscription_status is the SINGLE SOURCE OF TRUTH
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("onboarding_status, plan_name, plan, subscription_status")
+            .select("subscription_status")
             .eq("id", user.id)
             .single();
 
           // Handle profile fetch errors gracefully
           if (profileError && profileError.code !== "PGRST116") {
             console.error("[LoginPage] Profile fetch error:", profileError);
-            // Don't show error to user, just let them log in normally
           }
 
-          const profileSnapshot: ProfileSnapshot | null = profile ? {
-            onboarding_status: (profile as any)?.onboarding_status ?? null,
-            plan_name: (profile as any)?.plan_name ?? null,
-            plan: (profile as any)?.plan ?? null,
-            subscription_status: (profile as any)?.subscription_status ?? null,
-          } : null;
-          const isPaid = isPaidPlan(profileSnapshot);
+          // RULE: If profile not loaded yet, do NOTHING (no redirect during loading)
+          if (!profile) {
+            return;
+          }
 
-          console.log("[LOGIN] profile", profileSnapshot);
-          console.log("[LOGIN] subscription_status", profileSnapshot?.subscription_status);
-          console.log("[LOGIN] STRIPE FORBIDDEN =", isStripeForbidden(profileSnapshot));
+          const subscriptionStatus = (profile as any)?.subscription_status as string | null;
+          console.log("[LOGIN/checkSession] subscription_status =", subscriptionStatus);
 
-          if (isStripeForbidden(profileSnapshot)) {
+          // RULE 1: subscription_status === "active" → unconditional access to /decks
+          if (subscriptionStatus === "active") {
             router.replace("/decks");
             router.refresh();
             return;
           }
 
-          // RULE #1: If onboarding_status === "active", user can access the app
-          // This is the PRIMARY check - payment was validated by Stripe webhook
-          if (profileSnapshot?.onboarding_status === "active") {
-            // For paid users without email confirmation, they can still access
-            // For free users, email confirmation is required
-            if (!isPaid && !user.email_confirmed_at) {
-              await supabase.auth.signOut();
-              setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
-              return;
-            }
-            router.replace("/decks");
-            router.refresh();
-            return;
-          }
-
-          // RULE #2: Paid user with pending_payment - redirect to /pricing for explicit user action
-          // CRITICAL: Stripe must NEVER be triggered automatically during login/mount/guard
-          if (shouldRedirectToStripe(profileSnapshot)) {
+          // RULE 2: subscription_status === "pending_payment" → /pricing (user must click to pay)
+          if (subscriptionStatus === "pending_payment") {
             router.replace("/pricing");
             router.refresh();
             return;
           }
 
-          // RULE #3: No profile - wait for server-side creation
-          if (!profile) {
-            setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
-            return;
-          }
-
-          // RULE #4: Free user without email confirmation
+          // RULE 3: Free user (subscription_status is null or "free") → email required
           if (!user.email_confirmed_at) {
             await supabase.auth.signOut();
             setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
             return;
           }
 
-          // Fallback: unknown state
-          setError("État du compte non reconnu. Veuillez contacter le support.");
+          // Free user with confirmed email → access to /decks
+          router.replace("/decks");
+          router.refresh();
         }
       } catch (error) {
         // Catch all errors - don't let them bubble up as "loader failed"
@@ -193,7 +150,6 @@ export default function LoginClient() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-    setPaidEmailPending(false);
 
     try {
       // SIGN IN only (existing accounts)
@@ -231,11 +187,10 @@ export default function LoginClient() {
         return;
       }
 
-      // Get user metadata for paid plan detection
-      // Check profile status
+      // Get profile - subscription_status is the SINGLE SOURCE OF TRUTH
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("onboarding_status, plan_name, plan, subscription_status")
+        .select("subscription_status")
         .eq("id", user.id)
         .single();
 
@@ -244,62 +199,39 @@ export default function LoginClient() {
         console.error("[LoginPage] Profile fetch error:", profileError);
       }
 
-      const profileSnapshot: ProfileSnapshot | null = profile ? {
-        onboarding_status: (profile as any)?.onboarding_status ?? null,
-        plan_name: (profile as any)?.plan_name ?? null,
-        plan: (profile as any)?.plan ?? null,
-        subscription_status: (profile as any)?.subscription_status ?? null,
-      } : null;
-      const isPaid = isPaidPlan(profileSnapshot);
-
-      console.log("[LOGIN] profile", profileSnapshot);
-      console.log("[LOGIN] subscription_status", profileSnapshot?.subscription_status);
-      console.log("[LOGIN] STRIPE FORBIDDEN =", isStripeForbidden(profileSnapshot));
-
-      if (isStripeForbidden(profileSnapshot)) {
-        router.push("/decks");
-        router.refresh();
-        return;
-      }
-
-      // RULE #1: If onboarding_status === "active", user can access the app
-      // This is the PRIMARY check - payment was validated by Stripe webhook
-      if (profileSnapshot?.onboarding_status === "active") {
-        // For paid users, email confirmation is NOT required
-        // For free users, email confirmation IS required
-        if (!isPaid && !user.email_confirmed_at) {
-          await supabase.auth.signOut();
-          setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
-          return;
-        }
-        router.push("/decks");
-        router.refresh();
-        return;
-      }
-
-      // RULE #2: Paid user with pending_payment - redirect to /pricing for explicit user action
-      // CRITICAL: Stripe must NEVER be triggered automatically during login/mount/guard
-      if (shouldRedirectToStripe(profileSnapshot)) {
-        router.push("/pricing");
-        router.refresh();
-        return;
-      }
-
-      // RULE #3: No profile - wait for server-side creation
+      // RULE: If profile not loaded yet, show error (don't redirect during loading)
       if (!profile) {
         setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
         return;
       }
 
-      // RULE #4: Free user without email confirmation
+      const subscriptionStatus = (profile as any)?.subscription_status as string | null;
+      console.log("[LOGIN/handleSubmit] subscription_status =", subscriptionStatus);
+
+      // RULE 1: subscription_status === "active" → unconditional access to /decks
+      if (subscriptionStatus === "active") {
+        router.push("/decks");
+        router.refresh();
+        return;
+      }
+
+      // RULE 2: subscription_status === "pending_payment" → /pricing (user must click to pay)
+      if (subscriptionStatus === "pending_payment") {
+        router.push("/pricing");
+        router.refresh();
+        return;
+      }
+
+      // RULE 3: Free user (subscription_status is null or "free") → email required
       if (!user.email_confirmed_at) {
         await supabase.auth.signOut();
         setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
         return;
       }
 
-      // Fallback: unknown state
-      setError("État du compte non reconnu. Veuillez contacter le support.");
+      // Free user with confirmed email → access to /decks
+      router.push("/decks");
+      router.refresh();
     } catch (err) {
       // Catch all unexpected errors
       console.error("[LoginPage] Unexpected error during login:", err);
@@ -348,22 +280,6 @@ export default function LoginClient() {
                     <p className="text-sm font-medium text-green-200">Paiement confirmé !</p>
                     <p className="mt-1 text-xs text-green-200/80">
                       Votre abonnement est actif. Connectez-vous pour accéder à {APP_NAME}.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Paid user with email not confirmed */}
-            {paidEmailPending && (
-              <div className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4">
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-200">Une dernière étape !</p>
-                    <p className="mt-1 text-xs text-amber-200/80">
-                      Votre paiement est confirmé. Confirmez votre email pour finaliser votre accès à {APP_NAME}.
-                      Vérifiez votre boîte de réception.
                     </p>
                   </div>
                 </div>

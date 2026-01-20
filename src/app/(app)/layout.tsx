@@ -19,26 +19,31 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Enforce onboarding_status for access to the app:
-  // - FREE: email confirmation required AND onboarding_status must be active
-  // - PAID: onboarding_status must be active (email confirmation is non-blocking)
+  // subscription_status is the SINGLE SOURCE OF TRUTH
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan_name, onboarding_status")
+    .select("subscription_status")
     .eq("id", user.id)
     .single();
 
-  const planName = (profile as any)?.plan_name as string | null | undefined;
-  const onboardingStatus = (profile as any)?.onboarding_status as string | null | undefined;
+  const subscriptionStatus = (profile as any)?.subscription_status as string | null | undefined;
 
-  // Default-safe: if profile missing or status not active, block access
-  if (onboardingStatus !== "active") {
+  // RULE 1: subscription_status === "active" → unconditional access
+  if (subscriptionStatus === "active") {
+    return <AppShellClient>{children}</AppShellClient>;
+  }
+
+  // RULE 2: subscription_status === "pending_payment" → /pricing
+  if (subscriptionStatus === "pending_payment") {
     redirect("/pricing");
   }
 
-  if ((planName === "free" || !planName) && !user.email_confirmed_at) {
+  // RULE 3: Free user (null or "free") → email required
+  if (!user.email_confirmed_at) {
     redirect("/login");
   }
+
+  // Free user with confirmed email → access granted
 
   return <AppShellClient>{children}</AppShellClient>;
 }
