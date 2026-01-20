@@ -354,10 +354,35 @@ async function checkUserQuota(userId: string, cardCount: number = 10): Promise<{
   const role = userProfile.role || "user";
   const used = userProfile.ai_cards_used_current_month || 0;
   const limit = userProfile.ai_cards_monthly_limit || 0;
+  const planMonthlyLimits: Record<"starter" | "pro", number> = {
+    starter: 300,
+    pro: 1000,
+  };
+  const targetLimit =
+    plan === "starter" || plan === "pro" ? planMonthlyLimits[plan] : 0;
+  const shouldUpdateLimit =
+    (plan === "starter" || plan === "pro") && limit < targetLimit;
 
   const isPremium = plan === "starter" || plan === "pro";
   const isFounderOrAdmin = role === "founder" || role === "admin";
   const hasAIAccess = isPremium || isFounderOrAdmin;
+
+  if (shouldUpdateLimit && !isFounderOrAdmin) {
+    const nextMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+    const { error: updateError } = await adminSupabase
+      .from("profiles")
+      .update({
+        ai_cards_monthly_limit: targetLimit,
+        ai_quota_reset_at: userProfile.ai_quota_reset_at || nextMonth.toISOString(),
+      })
+      .eq("id", userId);
+
+    if (!updateError) {
+      userProfile.ai_cards_monthly_limit = targetLimit;
+      userProfile.ai_quota_reset_at =
+        userProfile.ai_quota_reset_at || nextMonth.toISOString();
+    }
+  }
 
   // Check if quota needs reset
   if (!isFounderOrAdmin) {

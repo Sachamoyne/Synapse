@@ -46,25 +46,25 @@ export function PaywallModal({
                   AI flashcard generation is not available on the free plan.
                 </p>
                 <p>
-                  Upgrade to Starter (800 AI cards/month) or Pro (2,500 AI
+                  Upgrade to Starter (300 AI cards/month) or Pro (1,000 AI
                   cards/month) to unlock AI-powered flashcard generation.
                 </p>
               </div>
             ) : isStarter ? (
               <div className="space-y-4">
                 <p>
-                  You&apos,ve used all {limit} AI cards for this month. Your quota
+                  You&apos;ve used all {limit} AI cards for this month. Your quota
                   will reset at the beginning of next month.
                 </p>
                 <p>
-                  Upgrade to Pro for 2,500 AI cards per month and continue
+                  Upgrade to Pro for 1,000 AI cards per month and continue
                   generating cards immediately.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 <p>
-                  You&apos,ve used all {limit} AI cards for this month. Your quota
+                  You&apos;ve used all {limit} AI cards for this month. Your quota
                   will reset at the beginning of next month.
                 </p>
               </div>
