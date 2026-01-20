@@ -16,6 +16,23 @@ import { mapAuthError } from "@/lib/auth-errors";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
+type ProfileSnapshot = {
+  onboarding_status: string | null;
+  plan_name: string | null;
+  plan: string | null;
+  subscription_status: string | null;
+};
+
+function isPaidPlan(profile: ProfileSnapshot | null | undefined): boolean {
+  return profile?.plan_name === "starter" || profile?.plan_name === "pro" ||
+    profile?.plan === "starter" || profile?.plan === "pro";
+}
+
+function shouldRedirectToStripe(profile: ProfileSnapshot | null | undefined): boolean {
+  if (!profile) return false;
+  return profile.onboarding_status === "pending_payment" && profile.subscription_status !== "active";
+}
+
 export default function LoginClient() {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
@@ -54,7 +71,7 @@ export default function LoginClient() {
           // Get profile to check onboarding status and plan
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("onboarding_status, plan_name, plan")
+            .select("onboarding_status, plan_name, plan, subscription_status")
             .eq("id", user.id)
             .single();
 
@@ -64,21 +81,17 @@ export default function LoginClient() {
             // Don't show error to user, just let them log in normally
           }
 
-          const onboardingStatus = profile?.onboarding_status as string | null | undefined;
-          const planName = profile?.plan_name as string | null | undefined;
-          const plan = profile?.plan as string | null | undefined;
-
-          // Also check user metadata for plan info (in case profile hasn't been updated yet)
-          const metaPlanName = user.user_metadata?.plan_name as string | undefined;
-
-          // CRITICAL: Check both plan and plan_name to determine if user is paid
-          const isPaid = planName === "starter" || planName === "pro" ||
-                         plan === "starter" || plan === "pro" ||
-                         metaPlanName === "starter" || metaPlanName === "pro";
+          const profileSnapshot: ProfileSnapshot | null = profile ? {
+            onboarding_status: (profile as any)?.onboarding_status ?? null,
+            plan_name: (profile as any)?.plan_name ?? null,
+            plan: (profile as any)?.plan ?? null,
+            subscription_status: (profile as any)?.subscription_status ?? null,
+          } : null;
+          const isPaid = isPaidPlan(profileSnapshot);
 
           // RULE #1: If onboarding_status === "active", user can access the app
           // This is the PRIMARY check - payment was validated by Stripe webhook
-          if (onboardingStatus === "active") {
+          if (profileSnapshot?.onboarding_status === "active") {
             // For paid users without email confirmation, they can still access
             // For free users, email confirmation is required
             if (!isPaid && !user.email_confirmed_at) {
@@ -92,7 +105,7 @@ export default function LoginClient() {
           }
 
           // RULE #2: Paid user with pending_payment - redirect to Stripe checkout
-          if (onboardingStatus === "pending_payment") {
+          if (shouldRedirectToStripe(profileSnapshot)) {
             // If email not confirmed, show message but don't block payment flow
             if (!user.email_confirmed_at) {
               setPaidEmailPending(true);
@@ -101,7 +114,7 @@ export default function LoginClient() {
             // Try to redirect to checkout
             try {
               const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-              const checkoutPlan = planName || plan || metaPlanName || "starter";
+              const checkoutPlan = profileSnapshot?.plan_name || profileSnapshot?.plan;
               if (backendUrl && (checkoutPlan === "starter" || checkoutPlan === "pro")) {
                 const { data: { session } } = await supabase.auth.getSession();
                 const checkoutResponse = await fetch(`${backendUrl}/stripe/checkout`, {
@@ -237,13 +250,10 @@ export default function LoginClient() {
       }
 
       // Get user metadata for paid plan detection
-      const userMetadata = user.user_metadata || {};
-      const metaPlanName = userMetadata.plan_name as string | undefined;
-
       // Check profile status
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("onboarding_status, plan_name, plan")
+        .select("onboarding_status, plan_name, plan, subscription_status")
         .eq("id", user.id)
         .single();
 
@@ -252,18 +262,17 @@ export default function LoginClient() {
         console.error("[LoginPage] Profile fetch error:", profileError);
       }
 
-      const onboardingStatus = profile?.onboarding_status as string | null | undefined;
-      const planName = profile?.plan_name as string | null | undefined;
-      const plan = profile?.plan as string | null | undefined;
-
-      // CRITICAL: Check both plan, plan_name AND user metadata to determine if user is paid
-      const isPaid = planName === "starter" || planName === "pro" ||
-                     plan === "starter" || plan === "pro" ||
-                     metaPlanName === "starter" || metaPlanName === "pro";
+      const profileSnapshot: ProfileSnapshot | null = profile ? {
+        onboarding_status: (profile as any)?.onboarding_status ?? null,
+        plan_name: (profile as any)?.plan_name ?? null,
+        plan: (profile as any)?.plan ?? null,
+        subscription_status: (profile as any)?.subscription_status ?? null,
+      } : null;
+      const isPaid = isPaidPlan(profileSnapshot);
 
       // RULE #1: If onboarding_status === "active", user can access the app
       // This is the PRIMARY check - payment was validated by Stripe webhook
-      if (onboardingStatus === "active") {
+      if (profileSnapshot?.onboarding_status === "active") {
         // For paid users, email confirmation is NOT required
         // For free users, email confirmation IS required
         if (!isPaid && !user.email_confirmed_at) {
@@ -277,7 +286,7 @@ export default function LoginClient() {
       }
 
       // RULE #2: Paid user with pending_payment - redirect to Stripe checkout
-      if (onboardingStatus === "pending_payment") {
+      if (shouldRedirectToStripe(profileSnapshot)) {
         // Show email pending message if applicable
         if (!user.email_confirmed_at) {
           setPaidEmailPending(true);
@@ -286,7 +295,7 @@ export default function LoginClient() {
         // Try to redirect to checkout
         try {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-          const checkoutPlan = planName || plan || metaPlanName || "starter";
+          const checkoutPlan = profileSnapshot?.plan_name || profileSnapshot?.plan;
           if (backendUrl && (checkoutPlan === "starter" || checkoutPlan === "pro")) {
             const { data: { session } } = await supabase.auth.getSession();
             const checkoutResponse = await fetch(`${backendUrl}/stripe/checkout`, {
