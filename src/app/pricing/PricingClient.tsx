@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/brand";
 import { useTranslation } from "@/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { createClient } from "@/lib/supabase/client";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
@@ -83,10 +84,11 @@ export default function PricingClient() {
         <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
           <div className="flex w-full items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur-md">
             <Link
-              className="text-xs font-semibold tracking-[0.35em] text-white/85"
+              className="flex items-center gap-3 text-xs font-semibold tracking-[0.35em] text-white/85"
               href="/"
             >
-              {APP_NAME}
+              <BrandLogo size={28} />
+              <span>{APP_NAME}</span>
             </Link>
             <nav className="hidden items-center gap-8 text-xs font-light tracking-[0.2em] text-white/75 sm:flex">
               <Link className="transition hover:text-white" href="/pricing">

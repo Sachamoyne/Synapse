@@ -275,7 +275,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     // Get existing profile to preserve important fields (stripe_customer_id, role)
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("stripe_customer_id, role")
+      .select("stripe_customer_id, role, ai_cards_monthly_limit, ai_cards_used_current_month, ai_quota_reset_at")
       .eq("id", supabaseUserId)
       .single();
 
@@ -283,6 +283,16 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     const privilegedRoles = ["founder", "admin"];
     const existingRole = existingProfile?.role as string | undefined;
     const preserveRole = existingRole && privilegedRoles.includes(existingRole);
+
+    const quotaLimitByPlan: Record<Plan, number> = {
+      starter: 800,
+      pro: 2500,
+    };
+
+    const targetMonthlyLimit = quotaLimitByPlan[finalPlan];
+    const existingLimit = existingProfile?.ai_cards_monthly_limit ?? 0;
+    const nextMonthReset = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+    const shouldSetQuotaLimit = existingLimit < targetMonthlyLimit;
 
     // CRITICAL: Use UPSERT to create/update profile.
     // This ensures paid users always get the correct plan set.
@@ -295,6 +305,11 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       plan_name: finalPlan,
       onboarding_status: "active",
       subscription_status: "active",
+      ...(shouldSetQuotaLimit ? { ai_cards_monthly_limit: targetMonthlyLimit } : {}),
+      ...(existingProfile?.ai_cards_used_current_month !== null && existingProfile?.ai_cards_used_current_month !== undefined
+        ? { ai_cards_used_current_month: existingProfile.ai_cards_used_current_month }
+        : {}),
+      ...(existingProfile?.ai_quota_reset_at ? {} : { ai_quota_reset_at: nextMonthReset.toISOString() }),
       ...(existingProfile?.stripe_customer_id ? { stripe_customer_id: existingProfile.stripe_customer_id } : {}),
     };
 
