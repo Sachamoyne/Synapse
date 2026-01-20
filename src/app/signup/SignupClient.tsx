@@ -58,8 +58,8 @@ export default function SignupClient() {
       }
 
       if (plan === "free") {
-        // FREE: create user + profile client-side, email confirmation required
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        // FREE: create user, profile is created server-side by DB trigger
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -74,33 +74,6 @@ export default function SignupClient() {
         if (signUpError) {
           const authError = mapAuthError(signUpError, "signup");
           setError(authError.message);
-          return;
-        }
-
-        const user = signUpData.user;
-        if (!user) {
-          setError("Impossible de créer le compte. Veuillez réessayer.");
-          return;
-        }
-
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .upsert(
-            {
-              id: user.id,
-              email: user.email || email,
-              role: "user",
-              plan: "free",
-              plan_name: "free",
-              onboarding_status: "active",
-              subscription_status: "active",
-            },
-            { onConflict: "id", ignoreDuplicates: false }
-          );
-
-        if (profileError) {
-          console.error("[signup] Failed to upsert free profile:", profileError);
-          setError("Erreur lors de la création du profil. Veuillez réessayer.");
           return;
         }
 

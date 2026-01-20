@@ -16,67 +16,6 @@ import { mapAuthError } from "@/lib/auth-errors";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
-/**
- * Ensures a profile exists for FREE users only (idempotent).
- * PAID users get their profile from Stripe webhook - do not create here.
- * CRITICAL:
- * - Never overwrite existing profiles
- * - Never write plan/plan_name for paid users
- * - Only INSERT if profile truly doesn't exist
- */
-async function ensureProfileForFreeUser(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  userEmail: string | undefined,
-  userMetadata?: Record<string, unknown>
-): Promise<void> {
-  try {
-    // CRITICAL: Check user metadata - if they signed up for a paid plan, DO NOT create profile
-    // The webhook will handle it
-    const metaPlanName = userMetadata?.plan_name as string | undefined;
-    const metaOnboardingStatus = userMetadata?.onboarding_status as string | undefined;
-
-    if (metaPlanName === "starter" || metaPlanName === "pro" || metaOnboardingStatus === "pending_payment") {
-      console.log("[LoginPage] User signed up for paid plan - skipping ensureProfile (webhook handles this)");
-      return;
-    }
-
-    // Check if profile already exists
-    const { data: existingProfile, error: fetchError } = await supabase
-      .from("profiles")
-      .select("id, role, plan, plan_name, onboarding_status")
-      .eq("id", userId)
-      .single();
-
-    // If profile exists with ANY data, do nothing - preserve it
-    if (existingProfile?.id) {
-      console.log("[LoginPage] Profile already exists - preserving existing data");
-      return;
-    }
-
-    // If error is NOT "no rows" (PGRST116), something went wrong - don't create
-    if (fetchError && fetchError.code !== "PGRST116") {
-      console.error("[LoginPage] Error fetching profile:", fetchError);
-      return;
-    }
-
-    // Only create profile for users without one AND who are definitely FREE
-    console.log("[LoginPage] Creating FREE profile for user:", userId);
-    await supabase.from("profiles").insert({
-      id: userId,
-      email: userEmail || "",
-      role: "user",
-      plan: "free",
-      plan_name: "free",
-      onboarding_status: "active",
-      subscription_status: "active",
-    });
-  } catch (error) {
-    // Log but don't throw - authentication should not fail due to profile creation
-    console.error("[LoginPage] Failed to ensure profile:", error);
-  }
-}
-
 export default function LoginClient() {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
@@ -192,14 +131,9 @@ export default function LoginClient() {
             return;
           }
 
-          // RULE #3: No profile - check if paid user waiting for webhook
+          // RULE #3: No profile - wait for server-side creation
           if (!profile) {
-            // Check user metadata - if they signed up for paid plan, webhook should create profile
-            if (isPaid || metaPlanName === "starter" || metaPlanName === "pro") {
-              setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
-              return;
-            }
-            setError("Aucun profil trouvé. Veuillez vous inscrire via la page Pricing.");
+            setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
             return;
           }
 
@@ -382,26 +316,9 @@ export default function LoginClient() {
         return;
       }
 
-      // RULE #3: No profile - check if this is a paid user waiting for webhook
+      // RULE #3: No profile - wait for server-side creation
       if (!profile) {
-        // If user signed up for paid plan, their profile should be created by webhook
-        // DON'T create a free profile for them - it would overwrite the paid plan
-        if (isPaid) {
-          setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
-          return;
-        }
-
-        // Only ensure profile for definitely-free users
-        await ensureProfileForFreeUser(supabase, user.id, user.email, userMetadata);
-
-        // Re-check after profile creation
-        if (!user.email_confirmed_at) {
-          await supabase.auth.signOut();
-          setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
-          return;
-        }
-        router.push("/decks");
-        router.refresh();
+        setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
         return;
       }
 
