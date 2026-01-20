@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, Mail } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Playfair_Display } from "next/font/google";
@@ -17,37 +17,34 @@ import { mapAuthError } from "@/lib/auth-errors";
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
 /**
- * Ensures a profile exists for the user (idempotent).
- * Uses UPSERT to avoid errors if profile already exists.
- * Does NOT block authentication if profile creation fails.
- * CRITICAL: Preserves existing 'founder' or 'admin' role - never overwrites privileged roles.
+ * Ensures a profile exists for FREE users only (idempotent).
+ * PAID users get their profile from Stripe webhook - do not create here.
+ * CRITICAL: Never overwrite privileged roles (founder/admin).
  */
-async function ensureProfile(
+async function ensureProfileForFreeUser(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   userEmail: string | undefined
 ): Promise<void> {
   try {
-    // Create a FREE profile only if missing (do not overwrite paid profiles)
+    // Check if profile already exists
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id, role")
+      .select("id, role, plan_name, onboarding_status")
       .eq("id", userId)
       .single();
 
+    // If profile exists, do nothing (preserve paid profiles from webhook)
     if (existingProfile?.id) {
       return;
     }
 
-    // Preserve privileged roles (founder/admin) - never overwrite them
-    const privilegedRoles = ["founder", "admin"];
-    const existingRole = existingProfile?.role;
-    const shouldPreserveRole = existingRole && privilegedRoles.includes(existingRole);
-
+    // Only create profile for users without one (fallback for free users)
+    // This should rarely happen as signup creates profiles
     await supabase.from("profiles").insert({
       id: userId,
       email: userEmail || "",
-      ...(shouldPreserveRole ? { role: existingRole } : { role: "user" }),
+      role: "user",
       plan: "free",
       plan_name: "free",
       onboarding_status: "active",
@@ -67,13 +64,16 @@ export default function LoginClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [paidEmailPending, setPaidEmailPending] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
+  // Check for checkout=success in URL (user just paid)
+  const checkoutSuccess = searchParams.get("checkout") === "success";
+
   useEffect(() => {
     // If a valid session already exists, redirect away from /login
-    // to the main authenticated dashboard.
     let cancelled = false;
 
     async function checkSession() {
@@ -83,20 +83,26 @@ export default function LoginClient() {
         } = await supabase.auth.getUser();
 
         if (!cancelled && user) {
-          // Gate access based on onboarding_status:
-          // - FREE: requires email confirmed + onboarding_status active
-          // - PAID: onboarding_status active is enough (email confirmation is non-blocking)
+          // Get profile to check onboarding status and plan
           const { data: profile } = await supabase
             .from("profiles")
-            .select("onboarding_status, plan_name")
+            .select("onboarding_status, plan_name, plan")
             .eq("id", user.id)
             .single();
 
-          const onboardingStatus = (profile as any)?.onboarding_status as string | null | undefined;
-          const planName = (profile as any)?.plan_name as string | null | undefined;
+          const onboardingStatus = profile?.onboarding_status as string | null | undefined;
+          const planName = profile?.plan_name as string | null | undefined;
+          const isPaid = planName === "starter" || planName === "pro";
+
+          // PAID user with email not confirmed: show specific message
+          if (isPaid && !user.email_confirmed_at) {
+            setPaidEmailPending(true);
+            // Don't sign out - just show the message
+            return;
+          }
 
           // FREE requires email confirmation
-          if ((planName === "free" || !planName) && !user.email_confirmed_at) {
+          if (!isPaid && !user.email_confirmed_at) {
             await supabase.auth.signOut();
             setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
             return;
@@ -110,10 +116,7 @@ export default function LoginClient() {
           }
 
           // Paid pending payment -> send to checkout
-          if (
-            onboardingStatus === "pending_payment" &&
-            (planName === "starter" || planName === "pro")
-          ) {
+          if (onboardingStatus === "pending_payment" && isPaid) {
             try {
               const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
               if (backendUrl) {
@@ -165,15 +168,10 @@ export default function LoginClient() {
     try {
       console.log("[LoginPage] Starting Google OAuth sign in...");
 
-      const qs = new URLSearchParams();
-      // Keep OAuth redirect simple: no plan selection, no checkout continuation here.
-
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback${
-            qs.toString() ? `?${qs.toString()}` : ""
-          }`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
@@ -186,9 +184,7 @@ export default function LoginClient() {
       }
 
       console.log("[LoginPage] Google OAuth initiated successfully:", data);
-      // Note: signInWithOAuth will redirect the user, so we don't need to handle success here
-      // The redirect will happen automatically
-    } catch (err: any) {
+    } catch (err) {
       console.error("[LoginPage] Unexpected error during Google sign in:", err);
       const authError = mapAuthError(err, "signin");
       setError(authError.message || "Erreur lors de la connexion avec Google. Veuillez réessayer.");
@@ -196,11 +192,12 @@ export default function LoginClient() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+    setPaidEmailPending(false);
 
     try {
       // SIGN IN only (existing accounts)
@@ -221,26 +218,43 @@ export default function LoginClient() {
         return;
       }
 
-      await ensureProfile(supabase, user.id, user.email);
-
-      // Check onboarding status to decide access
+      // Check profile status
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_status, plan_name")
+        .select("onboarding_status, plan_name, plan")
         .eq("id", user.id)
         .single();
 
-      const onboardingStatus = (profile as any)?.onboarding_status as string | null | undefined;
-      const planName = (profile as any)?.plan_name as string | null | undefined;
+      const onboardingStatus = profile?.onboarding_status as string | null | undefined;
+      const planName = profile?.plan_name as string | null | undefined;
+      const isPaid = planName === "starter" || planName === "pro";
+
+      // PAID user with email not confirmed: show specific message but don't block
+      if (isPaid && !user.email_confirmed_at) {
+        // If onboarding is active (payment done), they can access the app
+        if (onboardingStatus === "active") {
+          router.push("/decks");
+          router.refresh();
+          return;
+        }
+        // Payment pending - show message
+        setPaidEmailPending(true);
+        return;
+      }
 
       // FREE requires email confirmation
-      if ((planName === "free" || !planName) && !user.email_confirmed_at) {
+      if (!isPaid && !user.email_confirmed_at) {
         await supabase.auth.signOut();
         setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
         return;
       }
 
-      // Paid: access as soon as payment activates onboarding_status (email confirmation is non-blocking)
+      // Ensure profile exists for free users (fallback)
+      if (!isPaid) {
+        await ensureProfileForFreeUser(supabase, user.id, user.email);
+      }
+
+      // Active onboarding -> access app
       if (onboardingStatus === "active") {
         router.push("/decks");
         router.refresh();
@@ -248,10 +262,7 @@ export default function LoginClient() {
       }
 
       // If paid onboarding pending payment, trigger checkout automatically
-      if (
-        onboardingStatus === "pending_payment" &&
-        (planName === "starter" || planName === "pro")
-      ) {
+      if (onboardingStatus === "pending_payment" && isPaid) {
         try {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
           if (backendUrl) {
@@ -281,8 +292,7 @@ export default function LoginClient() {
       }
 
       setError("Votre compte n'est pas encore activé. Veuillez finaliser le paiement.");
-    } catch (err: any) {
-      // Fallback for unexpected errors
+    } catch (err) {
       const authError = mapAuthError(err, "signin");
       setError(authError.message || t("auth.errorOccurred"));
     } finally {
@@ -318,6 +328,37 @@ export default function LoginClient() {
                 </h1>
               </div>
             </div>
+
+            {/* Success message after Stripe checkout */}
+            {checkoutSuccess && (
+              <div className="mt-6 rounded-2xl border border-green-500/50 bg-green-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-green-200">Paiement confirmé !</p>
+                    <p className="mt-1 text-xs text-green-200/80">
+                      Votre abonnement est actif. Connectez-vous pour accéder à {APP_NAME}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Paid user with email not confirmed */}
+            {paidEmailPending && (
+              <div className="mt-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-200">Une dernière étape !</p>
+                    <p className="mt-1 text-xs text-amber-200/80">
+                      Votre paiement est confirmé. Confirmez votre email pour finaliser votre accès à {APP_NAME}.
+                      Vérifiez votre boîte de réception.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <div className="space-y-2">
@@ -446,4 +487,3 @@ export default function LoginClient() {
     </div>
   );
 }
-

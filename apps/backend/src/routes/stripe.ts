@@ -243,12 +243,15 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Activate onboarding + keep legacy columns in sync to avoid regressions.
+    // Activate onboarding + set plan fields correctly.
+    // CRITICAL: Both `plan` and `plan_name` must be set to the paid plan.
+    // This overwrites any incorrect values (e.g., plan="free" from signup).
     const updatePayload: Record<string, unknown> = {
       onboarding_status: "active",
       subscription_status: "active",
     };
     if (planName === "starter" || planName === "pro") {
+      updatePayload.plan = planName;
       updatePayload.plan_name = planName;
     }
 
