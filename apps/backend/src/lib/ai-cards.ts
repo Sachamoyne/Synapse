@@ -347,7 +347,7 @@ async function checkUserQuota(userId: string, cardCount: number = 10): Promise<{
     };
   }
 
-  const plan =
+  const plan: "starter" | "pro" | "free" =
     userProfile.plan === "starter" || userProfile.plan === "pro"
       ? userProfile.plan
       : "free";
