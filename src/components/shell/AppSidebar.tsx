@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/brand";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useTranslation } from "@/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandLogo } from "@/components/BrandLogo";
 
 export function AppSidebar() {
@@ -27,17 +28,17 @@ export function AppSidebar() {
   return (
     <div
       className={cn(
-        "flex h-full flex-col border-r border-white/10 bg-slate-950/70 backdrop-blur-md transition-all duration-300 ease-in-out shrink-0",
+        "flex h-full flex-col border-r border-border bg-background transition-all duration-300 ease-in-out shrink-0",
         isOpen
           ? "w-64 max-w-full fixed inset-y-0 left-0 z-40 md:static md:w-64"
           : "w-0 overflow-hidden md:w-0 md:static md:-translate-x-full md:hidden",
       )}
     >
       {/* Header */}
-      <div className="flex h-20 items-center justify-center border-b border-white/10 px-6 overflow-hidden">
+      <div className="flex h-20 items-center justify-center border-b border-border px-6 overflow-hidden">
         <div className="flex items-center gap-3">
           <BrandLogo size={32} />
-          <h1 className="text-lg font-semibold tracking-wide whitespace-nowrap text-white/90">
+          <h1 className="text-lg font-semibold tracking-wide whitespace-nowrap text-foreground">
             {APP_NAME}
           </h1>
         </div>
@@ -53,16 +54,16 @@ export function AppSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-medium tracking-[0.08em] transition-all",
+                "relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium tracking-wide transition-all",
                 isActive
-                  ? "bg-white/10 text-white before:absolute before:left-0 before:top-2.5 before:h-5 before:w-0.5 before:rounded-full before:bg-white/70"
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                  ? "bg-foreground/[0.04] text-foreground before:absolute before:left-0 before:top-2.5 before:h-5 before:w-0.5 before:rounded-full before:bg-foreground"
+                  : "text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"
               )}
             >
               <Icon
                 className={cn(
                   "h-4 w-4 shrink-0 stroke-[1.5]",
-                  isActive ? "text-white" : "text-white/60"
+                  isActive ? "text-foreground" : "text-muted-foreground"
                 )}
               />
               <span className="whitespace-nowrap">
@@ -73,9 +74,10 @@ export function AppSidebar() {
         })}
       </nav>
 
-      {/* Language toggle at bottom */}
-      <div className="p-4 border-t border-white/10">
+      {/* Language and theme toggle at bottom */}
+      <div className="p-4 border-t border-border flex items-center justify-between">
         <LanguageToggle />
+        <ThemeToggle variant="minimal" />
       </div>
     </div>
   );

@@ -79,7 +79,7 @@ export default function LoginClient() {
           if (subscriptionStatus === "active") {
             // Paid users must also confirm their email
             if (!user.email_confirmed_at) {
-              setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception (et les spams).");
+              setError(t("auth.confirmEmailFirstWithSpam"));
               return;
             }
             router.refresh();
@@ -97,7 +97,7 @@ export default function LoginClient() {
           // RULE 3: Free user (subscription_status is null or "free") → email required
           if (!user.email_confirmed_at) {
             await supabase.auth.signOut();
-            setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
+            setError(t("auth.confirmEmailFirst"));
             return;
           }
 
@@ -146,7 +146,7 @@ export default function LoginClient() {
     } catch (err) {
       console.error("[LoginPage] Unexpected error during Google sign in:", err);
       const authError = mapAuthError(err, "signin");
-      setError(authError.message || "Erreur lors de la connexion avec Google. Veuillez réessayer.");
+      setError(authError.message || t("auth.googleSignInError"));
       setLoading(false);
     }
   };
@@ -171,13 +171,13 @@ export default function LoginClient() {
         // Check for specific error types
         if (signInError.message?.includes("Email not confirmed") ||
             signInError.message?.includes("email_not_confirmed")) {
-          setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception (et les spams).");
+          setError(t("auth.confirmEmailFirstWithSpam"));
           return;
         }
 
         if (signInError.message?.includes("Invalid login credentials") ||
             signInError.status === 400) {
-          setError("Email ou mot de passe incorrect. Veuillez vérifier vos identifiants.");
+          setError(t("auth.invalidCredentials"));
           return;
         }
 
@@ -189,7 +189,7 @@ export default function LoginClient() {
 
       const user = signInData.user;
       if (!user) {
-        setError("Aucun compte trouvé avec cet email.");
+        setError(t("auth.noAccountFound"));
         return;
       }
 
@@ -227,7 +227,7 @@ export default function LoginClient() {
 
       // RULE: If profile not loaded yet, show error (don't redirect during loading)
       if (!profile) {
-        setError("Votre profil est en cours de création. Veuillez patienter quelques instants et réessayer.");
+        setError(t("auth.profileCreating"));
         return;
       }
 
@@ -238,7 +238,7 @@ export default function LoginClient() {
       if (subscriptionStatus === "active") {
         // Paid users must also confirm their email
         if (!user.email_confirmed_at) {
-          setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception (et les spams).");
+          setError(t("auth.confirmEmailFirstWithSpam"));
           return;
         }
         router.refresh();
@@ -256,7 +256,7 @@ export default function LoginClient() {
       // RULE 3: Free user (subscription_status is null or "free") → email required
       if (!user.email_confirmed_at) {
         await supabase.auth.signOut();
-        setError("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
+        setError(t("auth.confirmEmailFirst"));
         return;
       }
 
@@ -267,7 +267,7 @@ export default function LoginClient() {
       // Catch all unexpected errors
       console.error("[LoginPage] Unexpected error during login:", err);
       const authError = mapAuthError(err, "signin");
-      setError(authError.message || "Une erreur est survenue. Veuillez réessayer.");
+      setError(authError.message || t("auth.unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -298,9 +298,9 @@ export default function LoginClient() {
               <div className="flex items-start gap-3">
                 <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-green-800">Paiement confirmé !</p>
+                  <p className="text-sm font-medium text-green-800">{t("auth.paymentConfirmed")}</p>
                   <p className="mt-1 text-xs text-green-700">
-                    Votre abonnement est actif. Connectez-vous pour accéder à {APP_NAME}.
+                    {t("auth.subscriptionActiveSignIn", { appName: APP_NAME })}
                   </p>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export default function LoginClient() {
 
             <div className="text-center text-xs text-muted-foreground">
               <Link href="/pricing" className="transition hover:text-foreground">
-                Voir les plans
+                {t("auth.viewPlans")}
               </Link>
             </div>
           </form>

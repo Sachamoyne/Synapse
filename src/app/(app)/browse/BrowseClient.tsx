@@ -102,19 +102,19 @@ export default function BrowseAllCardsPage() {
 
   const getStateBadge = (card: CardType): { label: string; color: string } => {
     if (card.suspended) {
-      return { label: t("cardStates.suspended"), color: "bg-white/10 text-white/60" };
+      return { label: t("cardStates.suspended"), color: "bg-muted text-muted-foreground" };
     }
 
     switch (card.state) {
       case "new":
-        return { label: t("cardStates.new"), color: "bg-sky-500/20 text-sky-200" };
+        return { label: t("cardStates.new"), color: "bg-sky-500/10 text-sky-600" };
       case "learning":
       case "relearning":
-        return { label: t("cardStates.learning"), color: "bg-amber-500/20 text-amber-200" };
+        return { label: t("cardStates.learning"), color: "bg-amber-500/10 text-amber-600" };
       case "review":
-        return { label: t("cardStates.review"), color: "bg-emerald-500/20 text-emerald-200" };
+        return { label: t("cardStates.review"), color: "bg-emerald-500/10 text-emerald-600" };
       default:
-        return { label: card.state, color: "bg-white/10 text-white/60" };
+        return { label: card.state, color: "bg-muted text-muted-foreground" };
     }
   };
 
@@ -334,8 +334,8 @@ export default function BrowseAllCardsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-10 py-8">
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-card px-8 py-14 text-center shadow-sm">
-              <p className="text-white/60">{t("browse.loadingCards")}</p>
+            <div className="rounded-xl border border-border bg-background px-8 py-14 text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <p className="text-muted-foreground">{t("browse.loadingCards")}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -387,8 +387,8 @@ export default function BrowseAllCardsPage() {
                 </div>
               ) : (
                 <div className="flex gap-4 h-[calc(100vh-280px)]">
-                  <div className="flex-1 border rounded-lg overflow-hidden flex flex-col bg-background">
-                    <div className="border-b bg-muted/50 px-4 py-2 flex items-center text-xs font-medium text-muted-foreground">
+                  <div className="flex-1 border border-border rounded-xl overflow-hidden flex flex-col bg-background shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                    <div className="border-b border-border/60 bg-foreground/[0.02] px-4 py-2 flex items-center text-xs font-medium text-muted-foreground">
                       <div className="flex-1">{t("browse.front")}</div>
                       <div className="w-40">{t("decks.deck")}</div>
                       <div className="w-24">{t("browse.state")}</div>
@@ -412,11 +412,11 @@ export default function BrowseAllCardsPage() {
                             onDoubleClick={(e) => handleOpenContextMenu(e, card.id)}
                             className={`
                               flex items-center px-4 py-2 border-b cursor-pointer transition-colors select-none
-                              ${isActive ? "bg-primary/15 border-l-4 border-l-primary" : isSelected ? "bg-blue-50/80 border-l-4 border-l-blue-500" : "border-l-4 border-l-transparent hover:bg-muted/40"}
+                              ${isActive ? "bg-foreground/[0.06] border-l-4 border-l-foreground" : isSelected ? "bg-foreground/[0.04] border-l-4 border-l-foreground/50" : "border-l-4 border-l-transparent hover:bg-foreground/[0.02]"}
                               ${card.suspended ? "opacity-60" : ""}
                             `}
                           >
-                            <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-white font-medium" : "text-white/70"}`}>
+                            <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-foreground font-medium" : "text-foreground"}`}>
                               {stripAndTruncate(card.front, 100)}
                             </div>
 
@@ -439,10 +439,10 @@ export default function BrowseAllCardsPage() {
                     </div>
                   </div>
 
-                  <div className="w-96 border rounded-lg overflow-hidden flex flex-col bg-background">
+                  <div className="w-96 border border-border rounded-xl overflow-hidden flex flex-col bg-background shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                     {activeCard ? (
                       <>
-                        <div className="border-b px-4 py-3 flex items-center justify-between bg-muted/30">
+                        <div className="border-b border-border/60 px-4 py-3 flex items-center justify-between bg-foreground/[0.02]">
                           <h3 className="font-medium text-sm">{t("browse.cardPreview")}</h3>
                           <div className="flex gap-1">
                             {!isEditing ? (

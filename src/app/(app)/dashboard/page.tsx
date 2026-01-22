@@ -310,7 +310,7 @@ export default function DashboardPage() {
   return (
     <>
       <Topbar title={t("dashboard.title")} />
-      <div className="flex-1 overflow-y-auto p-10 bg-gradient-to-b from-background to-muted/25">
+      <div className="flex-1 overflow-y-auto p-10 bg-background">
         <div className="mx-auto max-w-6xl space-y-8">
           <div className="flex items-center justify-between">
             <div>
@@ -330,15 +330,15 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+                <div className="rounded-xl border border-border bg-background p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.cardsReviewed")}</p>
-                  <p className="text-3xl font-extrabold text-primary">{loading ? "..." : studiedToday}</p>
+                  <p className="text-3xl font-extrabold text-foreground">{loading ? "..." : studiedToday}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+                <div className="rounded-xl border border-border bg-background p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.timeStudied")}</p>
-                  <p className="text-3xl font-extrabold text-primary">{loading ? "..." : formatMinutes(timeToday, t)}</p>
+                  <p className="text-3xl font-extrabold text-foreground">{loading ? "..." : formatMinutes(timeToday, t)}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-sm">
+                <div className="rounded-xl border border-border bg-background p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("dashboard.streak")}</p>
                     <Flame className="h-4 w-4 text-orange-500" />

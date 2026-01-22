@@ -65,7 +65,21 @@
     "logout": "Se deconnecter",
     "errorOccurred": "Une erreur est survenue",
     "acceptTermsError": "Vous devez accepter la politique de confidentialite et les CGU/CGV.",
-    "backToPlans": "Retour aux plans"
+    "backToPlans": "Retour aux plans",
+    "viewPlans": "Voir les plans",
+    "createYourAccount": "Creer votre compte",
+    "planLabel": "Plan",
+    "accountCreatedCheckEmail": "Compte cree. Verifiez votre email puis connectez-vous.",
+    "googleSignInError": "Erreur lors de la connexion avec Google. Veuillez reessayer.",
+    "accountCreationError": "Erreur lors de la creation du compte.",
+    "paymentConfirmed": "Paiement confirme !",
+    "subscriptionActiveSignIn": "Votre abonnement est actif. Connectez-vous pour acceder a {appName}.",
+    "confirmEmailFirst": "Veuillez confirmer votre email avant de vous connecter. Verifiez votre boite de reception.",
+    "confirmEmailFirstWithSpam": "Veuillez confirmer votre email avant de vous connecter. Verifiez votre boite de reception (et les spams).",
+    "invalidCredentials": "Email ou mot de passe incorrect. Veuillez verifier vos identifiants.",
+    "noAccountFound": "Aucun compte trouve avec cet email.",
+    "profileCreating": "Votre profil est en cours de creation. Veuillez patienter quelques instants et reessayer.",
+    "unexpectedError": "Une erreur est survenue. Veuillez reessayer."
   },
   "pricing": {
     "title": "Tarifs",

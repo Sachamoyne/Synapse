@@ -111,16 +111,16 @@ export default function DecksPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-10 py-8">
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-card px-8 py-14 text-center shadow-sm">
-              <p className="text-white/60">{t("decks.loadingDecks")}</p>
+            <div className="rounded-xl border border-border bg-background px-8 py-14 text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <p className="text-muted-foreground">{t("decks.loadingDecks")}</p>
             </div>
           ) : rootDecks.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-card px-8 py-14 text-center shadow-sm">
-              <BookOpen className="h-12 w-12 mx-auto mb-4 text-white/40" />
-              <h3 className="text-lg font-semibold text-white/90 mb-2">
+            <div className="rounded-xl border border-border bg-background px-8 py-14 text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {t("decks.noDecks")}
               </h3>
-              <p className="text-white/60 mb-6">
+              <p className="text-muted-foreground mb-6">
                 {t("decks.createFirstDeck")}
               </p>
               <Button onClick={() => setDialogOpen(true)}>
@@ -143,25 +143,25 @@ export default function DecksPage() {
                     <Link
                       key={deck.id}
                       href={`/decks/${deck.id}`}
-                      className="block rounded-2xl border border-white/10 bg-card p-4 shadow-sm"
+                      className="block rounded-xl border border-border bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white/90">
+                          <p className="truncate text-base font-semibold text-foreground">
                             {deck.name}
                           </p>
-                          <p className="mt-1 text-xs text-white/60">
+                          <p className="mt-0.5 text-xs text-muted-foreground">
                             {t("decks.total")} : {total}
                           </p>
                         </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-white/40" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       </div>
 
                       <div className="mt-3 flex gap-2 text-xs">
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-300">
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-600">
                           {t("decks.new")} : {counts.new}
                         </span>
-                        <span className="rounded-full bg-sky-500/10 px-2 py-1 text-sky-300">
+                        <span className="rounded-full bg-sky-500/10 px-2 py-1 text-sky-600">
                           {t("decks.review")} : {counts.review}
                         </span>
                       </div>
@@ -171,11 +171,11 @@ export default function DecksPage() {
               </div>
 
               {/* Desktop table / tree layout (unchanged) */}
-              <div className="hidden rounded-2xl border border-white/10 bg-card overflow-hidden shadow-sm md:block">
-                <div className="flex items-center justify-between px-5 py-3 bg-white/5 border-b border-white/10">
+              <div className="hidden rounded-xl border border-border bg-background overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] md:block">
+                <div className="flex items-center justify-between px-5 py-3 bg-foreground/[0.02] border-b border-border/60">
                   <div className="flex items-center gap-2 flex-1">
                     <div className="w-4" />
-                    <span className="text-xs font-medium text-white/60">
+                    <span className="text-xs font-medium text-muted-foreground">
                       {t("decks.deck")}
                     </span>
                   </div>
@@ -191,10 +191,10 @@ export default function DecksPage() {
                     </Button>
 
                     <div className="grid grid-cols-4 w-52 gap-3">
-                      <span className="text-xs text-right text-white/60">{t("decks.new")}</span>
-                      <span className="text-xs text-right text-white/60">{t("decks.learning")}</span>
-                      <span className="text-xs text-right text-white/60">{t("decks.review")}</span>
-                      <span className="text-xs text-right text-white/60">{t("decks.total")}</span>
+                      <span className="text-xs text-right text-muted-foreground">{t("decks.new")}</span>
+                      <span className="text-xs text-right text-muted-foreground">{t("decks.learning")}</span>
+                      <span className="text-xs text-right text-muted-foreground">{t("decks.review")}</span>
+                      <span className="text-xs text-right text-muted-foreground">{t("decks.total")}</span>
                     </div>
 
                     <div className="w-16" />

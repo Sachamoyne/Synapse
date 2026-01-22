@@ -65,7 +65,21 @@
     "logout": "Sign out",
     "errorOccurred": "An error occurred",
     "acceptTermsError": "You must accept the Privacy Policy and Terms of Service.",
-    "backToPlans": "Back to plans"
+    "backToPlans": "Back to plans",
+    "viewPlans": "View plans",
+    "createYourAccount": "Create your account",
+    "planLabel": "Plan",
+    "accountCreatedCheckEmail": "Account created. Check your email then sign in.",
+    "googleSignInError": "Error signing in with Google. Please try again.",
+    "accountCreationError": "Error creating account.",
+    "paymentConfirmed": "Payment confirmed!",
+    "subscriptionActiveSignIn": "Your subscription is active. Sign in to access {appName}.",
+    "confirmEmailFirst": "Please confirm your email before signing in. Check your inbox.",
+    "confirmEmailFirstWithSpam": "Please confirm your email before signing in. Check your inbox (and spam folder).",
+    "invalidCredentials": "Invalid email or password. Please check your credentials.",
+    "noAccountFound": "No account found with this email.",
+    "profileCreating": "Your profile is being created. Please wait a moment and try again.",
+    "unexpectedError": "An error occurred. Please try again."
   },
   "pricing": {
     "title": "Pricing",

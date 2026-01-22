@@ -62,19 +62,19 @@ function stripAndTruncate(html: string, maxLength: number = 80): string {
 // Helper to get state badge styling
 function getStateBadge(card: CardType): { label: string; color: string } {
   if (card.suspended) {
-    return { label: "Suspended", color: "bg-white/10 text-white/60" };
+    return { label: "Suspended", color: "bg-muted text-muted-foreground" };
   }
 
   switch (card.state) {
     case "new":
-      return { label: "New", color: "bg-sky-500/20 text-sky-200" };
+      return { label: "New", color: "bg-sky-500/10 text-sky-600" };
     case "learning":
     case "relearning":
-      return { label: "Learning", color: "bg-amber-500/20 text-amber-200" };
+      return { label: "Learning", color: "bg-amber-500/10 text-amber-600" };
     case "review":
-      return { label: "Review", color: "bg-emerald-500/20 text-emerald-200" };
+      return { label: "Review", color: "bg-emerald-500/10 text-emerald-600" };
     default:
-      return { label: card.state, color: "bg-white/10 text-white/60" };
+      return { label: card.state, color: "bg-muted text-muted-foreground" };
   }
 }
 
@@ -422,7 +422,7 @@ export default function BrowseCardsPage() {
                     `}
                   >
                     {/* Front preview (truncated) */}
-                    <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-white font-medium" : "text-white/70"}`}>
+                    <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-foreground font-medium" : "text-foreground"}`}>
                       {stripAndTruncate(card.front, 100)}
                     </div>
 

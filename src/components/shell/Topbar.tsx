@@ -26,18 +26,18 @@ export function Topbar({
   const { toggle } = useSidebar();
 
   return (
-    <div className="flex flex-col gap-3 border-b border-white/10 bg-slate-950/70 px-4 py-3 backdrop-blur-md md:h-20 md:flex-row md:items-center md:justify-between md:px-10 md:py-0">
+    <div className="flex flex-col gap-3 border-b border-border bg-background px-4 py-3 md:h-20 md:flex-row md:items-center md:justify-between md:px-10 md:py-0">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggle}
-          className="shrink-0 text-white/80 hover:bg-white/10 hover:text-white"
+          className="shrink-0 text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
           aria-label="Toggle sidebar"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <h2 className="text-2xl font-semibold tracking-tight text-white/90">{title}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
       </div>
 
       {/* Actions - mobile layout */}

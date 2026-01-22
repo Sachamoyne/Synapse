@@ -14,7 +14,7 @@ export default function AppShellClient({
 
   if (isStudyPage) {
     return (
-      <div className="app-shell flex h-screen w-screen overflow-hidden bg-gradient-to-b from-background via-background to-muted/40 text-foreground">
+      <div className="app-shell flex h-screen w-screen overflow-hidden bg-background text-foreground">
         {children}
       </div>
     );
@@ -31,7 +31,7 @@ function AppShellLayout({ children }: { children: React.ReactNode }) {
   const { isOpen, close } = useSidebar();
 
   return (
-    <div className="app-shell relative flex h-screen w-screen max-w-full overflow-hidden bg-gradient-to-b from-background via-background to-muted/40 text-foreground">
+    <div className="app-shell relative flex h-screen w-screen max-w-full overflow-hidden bg-background text-foreground">
       <AppSidebar />
       {/* Mobile overlay to close the sidebar */}
       {isOpen && (

@@ -102,19 +102,19 @@ export default function BrowseAllCardsPage() {
 
   const getStateBadge = (card: CardType): { label: string; color: string } => {
     if (card.suspended) {
-      return { label: t("cardStates.suspended"), color: "bg-white/10 text-white/60" };
+      return { label: t("cardStates.suspended"), color: "bg-muted text-muted-foreground" };
     }
 
     switch (card.state) {
       case "new":
-        return { label: t("cardStates.new"), color: "bg-sky-500/20 text-sky-200" };
+        return { label: t("cardStates.new"), color: "bg-sky-500/10 text-sky-600" };
       case "learning":
       case "relearning":
-        return { label: t("cardStates.learning"), color: "bg-amber-500/20 text-amber-200" };
+        return { label: t("cardStates.learning"), color: "bg-amber-500/10 text-amber-600" };
       case "review":
-        return { label: t("cardStates.review"), color: "bg-emerald-500/20 text-emerald-200" };
+        return { label: t("cardStates.review"), color: "bg-emerald-500/10 text-emerald-600" };
       default:
-        return { label: card.state, color: "bg-white/10 text-white/60" };
+        return { label: card.state, color: "bg-muted text-muted-foreground" };
     }
   };
 
@@ -334,8 +334,8 @@ export default function BrowseAllCardsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-10 py-8">
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-card px-8 py-14 text-center shadow-sm">
-              <p className="text-white/60">{t("browse.loadingCards")}</p>
+            <div className="rounded-2xl border border-border bg-background px-8 py-14 text-center shadow-sm">
+              <p className="text-muted-foreground">{t("browse.loadingCards")}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -417,7 +417,7 @@ export default function BrowseAllCardsPage() {
                               ${card.suspended ? "opacity-60" : ""}
                             `}
                           >
-                            <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-white font-medium" : "text-white/70"}`}>
+                            <div className={`flex-1 text-sm truncate pr-4 ${isSelected ? "text-foreground font-medium" : "text-foreground"}`}>
                               {stripAndTruncate(card.front, 100)}
                             </div>
 

@@ -94,7 +94,7 @@ export default function SignupClient() {
           throw new Error("User not created");
         }
 
-        setSuccess("Compte créé. Vérifiez votre email puis connectez-vous.");
+        setSuccess(t("auth.accountCreatedCheckEmail"));
         router.replace("/login");
         router.refresh();
         return;
@@ -144,7 +144,7 @@ export default function SignupClient() {
       window.location.href = payload.url;
     } catch (err: any) {
       const mapped = mapAuthError(err, "signup");
-      setError(mapped.message || "Erreur lors de la création du compte.");
+      setError(mapped.message || t("auth.accountCreationError"));
     } finally {
       setLoading(false);
     }
@@ -165,10 +165,10 @@ export default function SignupClient() {
             <BrandLogo size={48} iconSize={28} />
             <div>
               <h1 className="text-2xl font-medium text-foreground font-serif">
-                Create your account
+                {t("auth.createYourAccount")}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Plan : <span className="text-foreground font-medium">{plan}</span>
+                {t("auth.planLabel")} : <span className="text-foreground font-medium">{plan}</span>
               </p>
             </div>
           </div>

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Mobbin-style minimalist palette */
+    /* Clean minimalist palette - aligned with landing page */
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
 
@@ -17,20 +17,20 @@
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
+    --secondary: 0 0% 98%;
     --secondary-foreground: 0 0% 9%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 0 0% 98%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 0 0% 96%;
+    --accent: 0 0% 97%;
     --accent-foreground: 0 0% 9%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
     --ring: 0 0% 9%;
 
     --radius: 0.5rem;
@@ -43,7 +43,7 @@
   }
 
   .app-shell {
-    /* App shell uses same minimalist palette */
+    /* App shell - clean white with subtle accents */
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
 
@@ -56,11 +56,11 @@
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
+    --secondary: 0 0% 98%;
     --secondary-foreground: 0 0% 9%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 40%;
 
     --accent: 0 0% 96%;
     --accent-foreground: 0 0% 9%;

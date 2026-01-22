@@ -105,7 +105,7 @@ export function DeckTree({
   return (
     <div>
       <div
-        className="flex items-center justify-between px-3 py-1.5 border-b border-white/10 last:border-b-0 hover:bg-white/5 transition-colors cursor-pointer group"
+        className="flex items-center justify-between px-3 py-2.5 border-b border-border/60 last:border-b-0 hover:bg-foreground/[0.02] transition-colors cursor-pointer group"
         style={{ paddingLeft: `${12 + indent}px` }}
         onClick={handleDeckClick}
         onKeyDown={(e) => {
@@ -122,20 +122,20 @@ export function DeckTree({
           {hasChildren ? (
             <button
               onClick={handleExpandClick}
-              className="p-0.5 hover:bg-white/10 rounded transition-colors flex-shrink-0"
+              className="p-0.5 hover:bg-foreground/[0.04] rounded transition-colors flex-shrink-0"
               aria-label={expanded ? "Collapse" : "Expand"}
             >
               {expanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-white/70" />
+                <ChevronDown className="h-3.5 w-3.5 text-foreground/50" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-white/70" />
+                <ChevronRight className="h-3.5 w-3.5 text-foreground/50" />
               )}
             </button>
           ) : (
             <div className="w-4" />
           )}
-          <BookOpen className="h-4 w-4 text-white/60 flex-shrink-0" />
-          <span className="font-medium text-sm text-white/90 truncate">
+          <BookOpen className="h-4 w-4 text-foreground/40 flex-shrink-0" />
+          <span className="font-semibold text-sm text-foreground truncate">
             {deck.name}
           </span>
         </div>
@@ -151,8 +151,8 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.new > 0
-                        ? "text-sky-300"
-                        : "text-white/40"
+                        ? "text-sky-600"
+                        : "text-muted-foreground/50"
                     }`}
                   >
                     {counts.new}
@@ -160,8 +160,8 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.learning > 0
-                        ? "text-amber-300"
-                        : "text-white/40"
+                        ? "text-amber-600"
+                        : "text-muted-foreground/50"
                     }`}
                   >
                     {counts.learning}
@@ -169,13 +169,13 @@ export function DeckTree({
                   <span
                     className={`text-xs font-medium text-right whitespace-nowrap ${
                       counts.review > 0
-                        ? "text-emerald-300"
-                        : "text-white/40"
+                        ? "text-emerald-600"
+                        : "text-muted-foreground/50"
                     }`}
                   >
                     {counts.review}
                   </span>
-                  <span className="text-xs text-white/50 text-right whitespace-nowrap">
+                  <span className="text-xs text-muted-foreground text-right whitespace-nowrap">
                     ({totalCards})
                   </span>
                 </div>
@@ -183,7 +183,7 @@ export function DeckTree({
             }
             return (
               <div className="w-52 text-right">
-                <span className="text-xs text-white/50 whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {totalCards}
                 </span>
               </div>
@@ -196,7 +196,7 @@ export function DeckTree({
               variant="ghost"
               onClick={handleAddCardClick}
               aria-label="Add card"
-              className="h-11 w-11 sm:h-7 sm:w-7 px-0 sm:px-2 text-xs hover:bg-white/10"
+              className="h-11 w-11 sm:h-7 sm:w-7 px-0 sm:px-2 text-xs hover:bg-muted"
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>
