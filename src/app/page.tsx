@@ -11,6 +11,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LandingAIDemo } from "@/components/LandingAIDemo";
+import { CookieConsent } from "@/components/CookieConsent";
 
 const playfair = Playfair_Display({ subsets: ["latin"] });
 
@@ -38,6 +39,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <CookieConsent />
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
         <div className="flex items-center -mt-3">
           <BrandLogo size={104} />
